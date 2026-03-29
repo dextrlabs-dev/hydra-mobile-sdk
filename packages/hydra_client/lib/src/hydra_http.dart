@@ -18,6 +18,11 @@ class HydraHttpClient {
   Future<http.Response> postCardanoTransaction(Object body) =>
       _jsonPost('/cardano-transaction', body);
 
+  /// Submit a signed transaction to the open Hydra head (L2).
+  ///
+  /// Body is Hydra `Transaction` JSON (`cborHex`, `type`, `description`, optional `txId`).
+  Future<http.Response> postTransaction(Object body) => _jsonPost('/transaction', body);
+
   Future<http.Response> getProtocolParameters() =>
       _client.get(_config.httpUri('/protocol-parameters'));
 
