@@ -1,0 +1,14 @@
+name: hydra_client
+description: Dart client for Cardano Hydra node WebSocket and HTTP API (hydra-node 2.x).
+version: 0.1.0
+repository: https://github.com/dextrlabs-dev/hydra-mobile-sdk
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  http: ^1.2.2
+  web_socket_channel: ^3.0.1
+
+dev_dependencies:
+  test: ^1.25.8

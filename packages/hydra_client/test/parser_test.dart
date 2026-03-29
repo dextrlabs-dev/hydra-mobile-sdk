@@ -1,0 +1,82 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:hydra_client/hydra_client.dart';
+import 'package:test/test.dart';
+
+Future<String> _fixture(String name) =>
+    File('test/fixtures/$name').readAsString();
+
+void main() {
+  test('parses Greetings fixture', () async {
+    final msg = parseHydraMessage(await _fixture('greetings.json'));
+    expect(msg, isA<HydraGreetings>());
+    final g = msg as HydraGreetings;
+    expect(g.headStatus, 'Idle');
+    expect(g.hydraNodeVersion, '2.0.0');
+    expect(g.me, isA<Map>());
+  });
+
+  test('parses timed NetworkConnected', () async {
+    final msg = parseHydraMessage(await _fixture('network_connected.json'));
+    expect(msg, isA<HydraTimedServerOutput>());
+    final t = msg as HydraTimedServerOutput;
+    expect(t.tag, 'NetworkConnected');
+    expect(t.seq, 1);
+    expect(t.timestamp, isNotNull);
+  });
+
+  test('parses InvalidInput', () async {
+    final msg = parseHydraMessage(await _fixture('invalid_input.json'));
+    expect(msg, isA<HydraInvalidInput>());
+    final inv = msg as HydraInvalidInput;
+    expect(inv.reason, contains('not enough input'));
+    expect(inv.input, 'not-json');
+  });
+
+  test('Greetings without tag (legacy shape)', () {
+    final raw = jsonEncode({
+      'me': {'vkey': 'aa'},
+      'headStatus': 'Open',
+      'hydraNodeVersion': '1.0.0',
+    });
+    final msg = parseHydraMessage(raw);
+    expect(msg, isA<HydraGreetings>());
+  });
+
+  test('ClientInput maps include expected tags', () {
+    expect(ClientInput.init(), {'tag': 'Init'});
+    expect(ClientInput.close(), {'tag': 'Close'});
+    expect(ClientInput.safeClose(), {'tag': 'SafeClose'});
+    expect(
+      ClientInput.newTx({
+        'cborHex': 'ab',
+        'type': 'Tx ConwayEra',
+        'description': '',
+      }),
+      {
+        'tag': 'NewTx',
+        'transaction': {
+          'cborHex': 'ab',
+          'type': 'Tx ConwayEra',
+          'description': '',
+        },
+      },
+    );
+  });
+
+  test('HydraClientConfig builds WebSocket URI with query params', () {
+    const c = HydraClientConfig(
+      host: '127.0.0.1',
+      port: 4001,
+      history: false,
+      snapshotUtxo: false,
+      addressFilter: 'addr_test1qp',
+    );
+    expect(
+      c.webSocketUri.toString(),
+      'ws://127.0.0.1:4001/?history=no&snapshot-utxo=no&address=addr_test1qp',
+    );
+    expect(c.httpUri('/commit').toString(), 'http://127.0.0.1:4001/commit');
+  });
+}

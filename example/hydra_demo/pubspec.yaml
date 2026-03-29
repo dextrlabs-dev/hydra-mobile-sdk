@@ -1,0 +1,20 @@
+name: hydra_demo
+description: Example Flutter app using hydra_client against a local hydra-node.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  hydra_client:
+    path: ../../packages/hydra_client
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
