@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hydra_client/hydra_client.dart';
 
+import 'fixtures/commit_sample_fixture.dart';
 import 'services/hydra_commit_submit.dart';
 
 class ConnectionTab extends StatefulWidget {
@@ -21,7 +22,8 @@ class ConnectionTab extends StatefulWidget {
 }
 
 class _ConnectionTabState extends State<ConnectionTab> {
-  final _hostCtrl = TextEditingController(text: '127.0.0.1');
+  /// Android emulator → host machine’s Hydra: `10.0.2.2`. Desktop/web: `127.0.0.1`.
+  final _hostCtrl = TextEditingController(text: '10.0.2.2');
   final _portCtrl = TextEditingController(text: '4001');
   final _commitUtxoJsonCtrl = TextEditingController();
   final _commitMnemonicCtrl = TextEditingController();
@@ -122,6 +124,15 @@ class _ConnectionTabState extends State<ConnectionTab> {
     }
   }
 
+  void _loadSampleCommitFixture() {
+    setState(() {
+      _commitUtxoJsonCtrl.text = kSampleCommitUtxoJson.trim();
+      _commitMnemonicCtrl.text = kSampleBip39Mnemonic;
+      _commitResult = null;
+    });
+    _append('Loaded sample UTxO JSON + test mnemonic (preview demo only).');
+  }
+
   Future<void> _submitCommit() async {
     final session = _session;
     if (session == null) {
@@ -196,96 +207,115 @@ class _ConnectionTabState extends State<ConnectionTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _hostCtrl,
-              decoration: const InputDecoration(
-                labelText: 'hydra-node host',
-                border: OutlineInputBorder(),
-                helperText: 'Emulator on same PC: 10.0.2.2; remote: server IP',
+            Flexible(
+              flex: 3,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _hostCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'hydra-node host',
+                        border: OutlineInputBorder(),
+                        helperText: 'Emulator on same PC: 10.0.2.2; remote: server IP',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _portCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'API port',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton(onPressed: _connect, child: const Text('Connect')),
+                        OutlinedButton(onPressed: _disconnect, child: const Text('Disconnect')),
+                        FilledButton.tonal(
+                          onPressed: _session != null ? _sendInit : null,
+                          child: const Text('Send Init'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ExpansionTile(
+                      title: const Text('Commit UTxO to head (L1)'),
+                      subtitle: const Text('After Init, draft commit → sign → submit to Cardano'),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Paste the object from: cardano-cli query utxo --address <addr> '
+                            '--testnet-magic 42 --output-json\n'
+                            'Keys must be txHash#ix; values need address + value.lovelace. '
+                            'Same mnemonic as Dice game (${HydraCommitSubmit.defaultPaymentPath}).',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: _loadSampleCommitFixture,
+                            icon: const Icon(Icons.content_paste_go, size: 18),
+                            label: const Text('Load sample (preview testnet)'),
+                          ),
+                        ),
+                        TextField(
+                          controller: _commitUtxoJsonCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'L1 UTxO JSON',
+                            border: OutlineInputBorder(),
+                            alignLabelWithHint: true,
+                          ),
+                          maxLines: 6,
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _commitMnemonicCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'BIP39 mnemonic (owns those UTxOs)',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          onPressed: (_session != null && !_commitBusy) ? _submitCommit : null,
+                          icon: _commitBusy
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.upload),
+                          label: Text(_commitBusy ? 'Submitting…' : 'Draft, sign & submit commit'),
+                        ),
+                        if (_commitResult != null) ...[
+                          const SizedBox(height: 8),
+                          SelectableText(
+                            _commitResult!,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _portCtrl,
-              decoration: const InputDecoration(
-                labelText: 'API port',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton(onPressed: _connect, child: const Text('Connect')),
-                OutlinedButton(onPressed: _disconnect, child: const Text('Disconnect')),
-                FilledButton.tonal(
-                  onPressed: _session != null ? _sendInit : null,
-                  child: const Text('Send Init'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ExpansionTile(
-              title: const Text('Commit UTxO to head (L1)'),
-              subtitle: const Text('After Init, draft commit → sign → submit to Cardano'),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Paste the object from: cardano-cli query utxo --address <addr> '
-                    '--testnet-magic 42 --output-json\n'
-                    'Keys must be txHash#ix; values need address + value.lovelace. '
-                    'Same mnemonic as Dice game (${HydraCommitSubmit.defaultPaymentPath}).',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                TextField(
-                  controller: _commitUtxoJsonCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'L1 UTxO JSON',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  maxLines: 6,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _commitMnemonicCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'BIP39 mnemonic (owns those UTxOs)',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed: (_session != null && !_commitBusy) ? _submitCommit : null,
-                  icon: _commitBusy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.upload),
-                  label: Text(_commitBusy ? 'Submitting…' : 'Draft, sign & submit commit'),
-                ),
-                if (_commitResult != null) ...[
-                  const SizedBox(height: 8),
-                  SelectableText(
-                    _commitResult!,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                  ),
-                ],
-                const SizedBox(height: 8),
-              ],
             ),
             const SizedBox(height: 8),
             const Text('Log (newest first)', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Expanded(
+            Flexible(
+              flex: 2,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).dividerColor),

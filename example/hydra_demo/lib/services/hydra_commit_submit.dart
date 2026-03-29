@@ -8,6 +8,9 @@ import 'package:convert/convert.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:hydra_client/hydra_client.dart';
 
+import 'hydra_tx_cbor_normalize.dart';
+import 'hydra_tx_wire.dart';
+
 /// Drafts a Hydra commit tx (POST /commit), signs with payment key at
 /// [paymentPath], submits to L1 (POST /cardano-transaction).
 ///
@@ -54,37 +57,36 @@ class HydraCommitSubmit {
       final txType = envelope['type'] as String? ?? 'Tx ConwayEra';
       final description = envelope['description'] as String? ?? '';
 
-      final tx = Transaction.fromCbor(
-        cbor.cbor.decode(hex.decode(cborHex)),
-      );
+      final txBytes = Uint8List.fromList(hex.decode(cborHex));
+      final spans = cborRootArray4ItemSpans(txBytes);
+      final bodyForHash =
+          Uint8List.sublistView(txBytes, spans[0].$1, spans[0].$2);
 
-      final bodyBytes = Uint8List.fromList(cbor.cbor.encode(tx.body.toCbor()));
-      final digest = await Blake2b(hashLengthInBytes: 32).hash(bodyBytes);
+      final digest = await Blake2b(hashLengthInBytes: 32).hash(bodyForHash);
       final sig = await paymentSk.sign(digest.bytes);
-      final witness = VkeyWitness(
+      final vkeyWitness = VkeyWitness(
         vkey: paymentPub,
         signature: kd.Ed25519Signature.fromBytes(sig.bytes),
       );
+      final vkeyCbor = vkeyWitness.toCbor() as cbor.CborList;
 
-      final merged = TransactionWitnessSet(
-        vkeyWitnesses: {...tx.witnessSet.vkeyWitnesses, witness},
-        nativeScripts: tx.witnessSet.nativeScripts,
-        plutusV1Scripts: tx.witnessSet.plutusV1Scripts,
-        redeemers: tx.witnessSet.redeemers,
-        plutusV2Scripts: tx.witnessSet.plutusV2Scripts,
-        plutusV3Scripts: tx.witnessSet.plutusV3Scripts,
+      final witDecoded = cbor.cbor.decode(
+        Uint8List.sublistView(txBytes, spans[1].$1, spans[1].$2),
       );
+      final mergedWitnessMap =
+          mergeHydraVkeyWitnessIntoWitnessSet(witDecoded, vkeyCbor);
+      final witnessEncoded = cbor.cbor.encode(mergedWitnessMap);
 
-      final signed = Transaction(
-        body: tx.body,
-        isValid: tx.isValid,
-        witnessSet: merged,
-        auxiliaryData: tx.auxiliaryData,
+      final signedBytes = assembleWitnessedTxPreservingSlices(
+        bodySlice: Uint8List.sublistView(txBytes, spans[0].$1, spans[0].$2),
+        witnessEncoded: witnessEncoded,
+        isValidSlice: Uint8List.sublistView(txBytes, spans[2].$1, spans[2].$2),
+        auxiliarySlice: Uint8List.sublistView(txBytes, spans[3].$1, spans[3].$2),
       );
 
       final submitType = _witnessedEnvelopeType(txType);
       final body = <String, dynamic>{
-        'cborHex': hex.encode(cbor.cbor.encode(signed.toCbor())),
+        'cborHex': hex.encode(signedBytes),
         'type': submitType,
       };
       if (description.isNotEmpty) body['description'] = description;

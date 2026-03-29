@@ -7,6 +7,7 @@ import 'package:cbor/cbor.dart' as cbor;
 import 'package:convert/convert.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:hydra_client/hydra_client.dart';
+import 'package:http/http.dart' as http;
 
 /// Builds a small L2 transaction with dice metadata, signs with BIP39 path
 /// `m/1852'/1815'/0'/0/0`, submits via Hydra `POST /transaction`.
@@ -111,13 +112,60 @@ class DiceHydraSubmit {
         'description': 'hydra_demo dice r$roundIndex=$diceValue',
       });
 
-      if (txRes.statusCode != 200) {
-        throw StateError('POST /transaction ${txRes.statusCode}: ${txRes.body}');
-      }
-      return utf8.decode(txRes.bodyBytes);
+      return _decodeL2TransactionResponse(txRes);
     } finally {
       http.close();
     }
+  }
+
+  /// [Hydra API](https://hydra.family/head-protocol/unstable/api-reference):
+  /// 200 = confirmed snapshot, 202 = accepted (may still be confirming).
+  static String _decodeL2TransactionResponse(http.Response txRes) {
+    final bodyStr = utf8.decode(txRes.bodyBytes);
+    final code = txRes.statusCode;
+
+    Map<String, dynamic>? json;
+    try {
+      final o = jsonDecode(bodyStr);
+      if (o is Map<String, dynamic>) json = o;
+    } catch (_) {}
+
+    final tag = json?['tag'] as String?;
+    if (tag == 'SubmitTxInvalid') {
+      throw StateError(
+        'POST /transaction invalid: ${json?['validationError'] ?? bodyStr}',
+      );
+    }
+    if (tag == 'SubmitTxRejected') {
+      throw StateError(
+        'POST /transaction rejected: ${json?['reason'] ?? bodyStr}',
+      );
+    }
+
+    final timeout = json?['timeout'];
+    if (timeout != null) {
+      throw StateError(
+        'POST /transaction: $timeout '
+        '(tx may still propagate; check head UTxO or other Hydra parties.)',
+      );
+    }
+
+    if (code == 400) {
+      throw StateError('POST /transaction invalid: ${json?['validationError'] ?? bodyStr}');
+    }
+    if (code == 503) {
+      throw StateError('POST /transaction rejected: ${json?['reason'] ?? bodyStr}');
+    }
+    if (code != 200 && code != 202) {
+      throw StateError('POST /transaction $code: $bodyStr');
+    }
+
+    if (code == 202 && tag == 'SubmitTxSubmitted') {
+      return '$bodyStr\n'
+          '(202: node accepted the tx; confirmation can follow asynchronously.)';
+    }
+
+    return bodyStr;
   }
 
   static _OwnedMatch? _findOwnedUnspent(
