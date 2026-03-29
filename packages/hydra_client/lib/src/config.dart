@@ -24,6 +24,74 @@ class HydraClientConfig {
   /// Maps to query `address=...` for filtered server outputs.
   final String? addressFilter;
 
+  /// Parses typical UI text fields (optional `ws://` / `http://` URL in [hostField],
+  /// optional `host:port` for IPv4, optional `[ipv6]:port`).
+  static HydraClientConfig fromUiFields(
+    String hostField,
+    String portField, {
+    bool? history,
+    bool? snapshotUtxo,
+    String? addressFilter,
+  }) {
+    var host = hostField.trim();
+    var port = int.tryParse(portField.trim());
+    var secure = false;
+
+    if (host.isEmpty) {
+      throw FormatException('hydra-node host is empty');
+    }
+
+    if (host.contains('://')) {
+      final uri = Uri.parse(host);
+      secure = uri.isScheme('wss') || uri.isScheme('https');
+      if (uri.host.isEmpty) {
+        throw FormatException('Could not parse host from URL: $hostField');
+      }
+      host = uri.host;
+      if (uri.hasPort) {
+        port = uri.port;
+      }
+      port ??= int.tryParse(portField.trim()) ?? 4001;
+    } else {
+      port ??= int.tryParse(portField.trim()) ?? 4001;
+      if (host.startsWith('[')) {
+        final idx = host.indexOf(']:');
+        if (idx != -1 && idx < host.length - 2) {
+          final p = int.tryParse(host.substring(idx + 2));
+          if (p != null) {
+            port = p;
+            host = host.substring(0, idx + 1);
+          }
+        }
+      } else {
+        final lastColon = host.lastIndexOf(':');
+        if (lastColon > 0) {
+          final tail = host.substring(lastColon + 1);
+          if (RegExp(r'^\d{1,5}$').hasMatch(tail)) {
+            final p = int.tryParse(tail);
+            if (p != null && p <= 65535) {
+              port = p;
+              host = host.substring(0, lastColon);
+            }
+          }
+        }
+      }
+    }
+
+    if (host.isEmpty) {
+      throw FormatException('hydra-node host is empty after parsing');
+    }
+
+    return HydraClientConfig(
+      host: host,
+      port: port,
+      secure: secure,
+      history: history,
+      snapshotUtxo: snapshotUtxo,
+      addressFilter: addressFilter,
+    );
+  }
+
   Uri get webSocketUri {
     final q = <String, String>{};
     if (history != null) {

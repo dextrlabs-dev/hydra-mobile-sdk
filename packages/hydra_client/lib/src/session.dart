@@ -6,6 +6,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'config.dart';
 import 'messages.dart';
 import 'parser.dart';
+import 'ws_channel_factory.dart';
 
 /// Live WebSocket session to `hydra-node` client API.
 class HydraSession {
@@ -28,7 +29,7 @@ class HydraSession {
     if (_channel != null) {
       return;
     }
-    final ch = WebSocketChannel.connect(config.webSocketUri);
+    final ch = createHydraWebSocket(config.webSocketUri);
     _channel = ch;
     await ch.ready;
     _subscription = ch.stream.listen(

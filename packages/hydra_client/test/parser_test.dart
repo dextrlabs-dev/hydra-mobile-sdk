@@ -79,4 +79,19 @@ void main() {
     );
     expect(c.httpUri('/commit').toString(), 'http://127.0.0.1:4001/commit');
   });
+
+  test('HydraClientConfig.fromUiFields parses URL and host:port', () {
+    final a = HydraClientConfig.fromUiFields(
+      'ws://139.59.94.155:4001',
+      '9999',
+      history: true,
+    );
+    expect(a.host, '139.59.94.155');
+    expect(a.port, 4001);
+    expect(a.secure, false);
+
+    final b = HydraClientConfig.fromUiFields('139.59.94.155:4001', '4001');
+    expect(b.host, '139.59.94.155');
+    expect(b.port, 4001);
+  });
 }

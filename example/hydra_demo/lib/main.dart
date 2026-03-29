@@ -59,9 +59,17 @@ class _HydraHomePageState extends State<HydraHomePage> {
 
   Future<void> _connect() async {
     await _disconnect();
-    final host = _hostCtrl.text.trim();
-    final port = int.tryParse(_portCtrl.text.trim()) ?? 4001;
-    final config = HydraClientConfig(host: host, port: port, history: true);
+    late final HydraClientConfig config;
+    try {
+      config = HydraClientConfig.fromUiFields(
+        _hostCtrl.text,
+        _portCtrl.text,
+        history: true,
+      );
+    } on FormatException catch (e) {
+      _append('Invalid host/port: $e');
+      return;
+    }
     final session = HydraSession(config);
     setState(() {
       _session = session;
@@ -81,7 +89,7 @@ class _HydraHomePageState extends State<HydraHomePage> {
       _append('WebSocket open: ${config.webSocketUri}');
     } catch (e) {
       setState(() => _status = 'Error');
-      _append('Connect failed: $e');
+      _append('Connect failed (tried ${config.webSocketUri}): $e');
       await session.dispose();
       setState(() => _session = null);
     }
