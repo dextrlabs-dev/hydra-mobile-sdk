@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hydra_client/hydra_client.dart';
 
+import 'fixtures/commit_sample_fixture.dart';
 import 'services/dice_hydra_submit.dart';
 
 /// Simple dice game: each roll submits an L2 transaction (metadata) via
@@ -26,6 +28,14 @@ class _DiceGameTabState extends State<DiceGameTab> {
   int _score = 0;
   bool _busy = false;
   String? _lastResult;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode) {
+      _mnemonicCtrl.text = kSampleBip39Mnemonic;
+    }
+  }
 
   @override
   void dispose() {
@@ -94,7 +104,7 @@ class _DiceGameTabState extends State<DiceGameTab> {
         padding: const EdgeInsets.all(16),
         children: [
           Card(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.65),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
