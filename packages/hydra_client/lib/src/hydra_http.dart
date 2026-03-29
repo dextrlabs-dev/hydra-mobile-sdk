@@ -28,9 +28,32 @@ class HydraHttpClient {
 
   Future<http.Response> getSnapshotUtxo() => _client.get(_config.httpUri('/snapshot/utxo'));
 
+  /// operationId: `getSeenSnapshot`
+  Future<http.Response> getSnapshotLastSeen() =>
+      _client.get(_config.httpUri('/snapshot/last-seen'));
+
+  /// operationId: `getConfirmedSnapshot` (GET)
+  Future<http.Response> getSnapshot() => _client.get(_config.httpUri('/snapshot'));
+
+  /// operationId: `sideLoadSnapshotRequest` — body is a `ConfirmedSnapshot` JSON object.
+  Future<http.Response> postSnapshot(Object body) => _jsonPost('/snapshot', body);
+
+  /// operationId: `decommitRequest` — body is a Hydra `Transaction` JSON object.
+  Future<http.Response> postDecommit(Object body) => _jsonPost('/decommit', body);
+
   Future<http.Response> getHeadState() => _client.get(_config.httpUri('/head'));
 
+  /// operationId: `getHeadInitialization`
+  Future<http.Response> getHeadInitialization() =>
+      _client.get(_config.httpUri('/head-initialization'));
+
   Future<http.Response> getPendingCommits() => _client.get(_config.httpUri('/commits'));
+
+  /// operationId: `recoverDepositRequest` — [txId] is the deposit transaction id (hex).
+  Future<http.Response> deleteCommitTx(String txId) {
+    final enc = Uri.encodeComponent(txId);
+    return _client.delete(_config.httpUri('/commits/$enc'));
+  }
 
   Future<http.Response> _jsonPost(String path, Object body) {
     final uri = _config.httpUri(path);

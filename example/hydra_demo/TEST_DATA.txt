@@ -1,0 +1,117 @@
+Hydra demo — test mnemonics, addresses, and L1 UTxO JSON
+========================================================
+
+These mnemonics are PUBLIC BIP39 test phrases (known worldwide). Never use them
+on mainnet. They are only for local devnet (e.g. Hydra demo, testnet-magic 42).
+
+Catalyst / app derivation: payment path m/1852'/1815'/0'/0/0 (same as Dice tab).
+Base addresses below match common Cardano CIP-1852 tooling (e.g. Emurgo CSL).
+If "address does not match mnemonic" appears, your paste must be from
+`cardano-cli query utxo` for that exact addr_test.
+
+----------------------------------------------------------------------
+Wallet A — BIP39 official test vector #1 (12 words)
+----------------------------------------------------------------------
+Mnemonic (single line):
+
+abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+
+addr_test (payment m/1852'/1815'/0'/0/0, stake m/1852'/1815'/0'/2/0):
+
+addr_test1qq8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqkt5dmn
+
+----------------------------------------------------------------------
+Wallet B — BIP39 official test vector #2 (12 words)
+----------------------------------------------------------------------
+Mnemonic:
+
+legal winner thank year wave sausage worth useful legal winner thank yellow
+
+addr_test:
+
+addr_test1qzttdu6d96klw8xvme7ctwuv0jg7xns0vm35ksv4l722aupyayzk39uascqj78hynwh3ax5w8ch5n9062k0vpnj3dlpsjt6afz
+
+----------------------------------------------------------------------
+Example L1 UTxO JSON for "Commit UTxO to head (L1)"
+----------------------------------------------------------------------
+Replace the outer key with a REAL txHash#ix from your node after you fund the
+address (see below). Shape matches `cardano-cli query utxo --output-json`.
+
+{
+  "PASTE_REAL_TXHASH_AND_INDEX_HERE": {
+    "address": "addr_test1qq8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqkt5dmn",
+    "datum": null,
+    "inlineDatum": null,
+    "referenceScript": null,
+    "value": {
+      "lovelace": 10000000
+    }
+  }
+}
+
+Then query UTxOs (magic 42 = Hydra demo devnet).
+
+If `cardano-cli: command not found` on the host, the CLI lives in the Hydra
+docker `cardano-node` container.
+
+IMPORTANT: Run `docker compose` from the hydra **demo** directory (the one that
+contains `docker-compose.yaml` and `devnet/`), NOT from `hydra-mobile-sdk`.
+If you see "no configuration file provided", you are in the wrong folder. Fix:
+
+  cd /path/to/hydra/demo
+
+Or from anywhere:
+
+  docker compose -f /path/to/hydra/demo/docker-compose.yaml exec cardano-node ...
+
+Example from your hydra repo `demo/` folder:
+
+  docker compose exec cardano-node cardano-cli conway query utxo \
+    --socket-path /devnet/node.socket \
+    --testnet-magic 42 \
+    --address addr_test1qq8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqkt5dmn \
+    --output-json
+
+If `conway` is not a valid subcommand in your image, omit it:
+
+  docker compose exec cardano-node cardano-cli query utxo \
+    --socket-path /devnet/node.socket \
+    --testnet-magic 42 \
+    --address addr_test1qq8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqkt5dmn \
+    --output-json
+
+Paste the entire JSON object into the app (not the shell wrapper).
+
+----------------------------------------------------------------------
+Why query utxo is {} (empty)
+----------------------------------------------------------------------
+`seed-devnet.sh` only funds alice/bob/carol keys — NOT the BIP39 test
+addresses in this file. Those addr_test values start with zero balance until
+you send them ada from the devnet faucet.
+
+`invalid address` / `unexpected end of input`: the bech32 string was split
+across shell lines. Put the full addr_test on ONE line (or use quotes).
+
+----------------------------------------------------------------------
+Fund Wallet A from the demo faucet (host needs jq)
+----------------------------------------------------------------------
+From hydra `demo/` (after ./seed-devnet.sh), run the helper script from
+hydra-mobile-sdk:
+
+  cd ~/hydra/demo
+  ~/hydra-mobile-sdk/example/hydra_demo/scripts/fund_addr_from_faucet.sh \
+    addr_test1qq8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqkt5dmn
+
+Optional second arg = lovelace (default 100000000 = 100 ada):
+
+  .../fund_addr_from_faucet.sh addr_test1qq8ac7q... 50000000
+
+Wait a few seconds, then re-run query utxo on that address; you should get a
+non-empty JSON object for the Commit panel.
+
+----------------------------------------------------------------------
+Dice game (L2)
+----------------------------------------------------------------------
+After the head is open and /snapshot/utxo lists UTxOs for your payment key,
+use the SAME mnemonic as for commit. If L2 says "Empty UTxO set", commits are
+not in the open snapshot yet; if "No UTxO matches", address/path mismatch.

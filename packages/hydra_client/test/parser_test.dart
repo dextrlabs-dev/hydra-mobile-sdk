@@ -14,7 +14,7 @@ void main() {
     final g = msg as HydraGreetings;
     expect(g.headStatus, 'Idle');
     expect(g.hydraNodeVersion, '2.0.0');
-    expect(g.me, isA<Map>());
+    expect(g.me, isA<Map<Object?, Object?>>());
   });
 
   test('parses timed NetworkConnected', () async {
@@ -48,6 +48,8 @@ void main() {
     expect(ClientInput.init(), {'tag': 'Init'});
     expect(ClientInput.close(), {'tag': 'Close'});
     expect(ClientInput.safeClose(), {'tag': 'SafeClose'});
+    expect(ClientInput.contest(), {'tag': 'Contest'});
+    expect(ClientInput.fanout(), {'tag': 'Fanout'});
     expect(
       ClientInput.newTx({
         'cborHex': 'ab',

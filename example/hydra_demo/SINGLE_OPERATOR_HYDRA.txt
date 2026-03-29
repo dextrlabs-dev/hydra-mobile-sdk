@@ -1,0 +1,49 @@
+Single-operator Hydra (no Bob/Carol)
+====================================
+
+The default docker demo is 3-party. Two options:
+
+1) ONLINE — one hydra-node
+   - Do not pass --peer.
+   - Pass only YOUR --hydra-signing-key and --cardano-signing-key.
+   - Pass zero --hydra-verification-key and zero --cardano-verification-key
+     (both lists empty is valid; you are the only party).
+   - Stop the other two hydra-node containers so only this node runs.
+   - After Init, only you Commit; head can Open without Bob/Carol.
+
+2) OFFLINE — single participant (official)
+   - Docs: https://hydra.family/head-protocol/docs/configuration#offline-mode
+   - Use --offline-head-seed and --initial-utxo JSON; no cardano-node.
+   - POST /commit does not build L1 txs (400). Flutter L1 commit UI N/A.
+   - Good for fast L2-only testing with a fixed UTxO file.
+
+You cannot remove Bob/Carol from only one of three nodes: all participants
+must share the same party set at Init. Reconfigure to one party everywhere,
+or run a single node as in (1).
+
+Example (from hydra/demo, cardano-node running, HYDRA_SCRIPTS_TX_ID in .env):
+
+  docker compose stop hydra-node-1 hydra-node-2 hydra-node-3
+  docker compose rm -f hydra-node-1 hydra-node-2 hydra-node-3
+  docker rm -f hydra-single 2>/dev/null || true
+  mkdir -p devnet/persistence/hydra-single
+
+  export HYDRA_SCRIPTS_TX_ID=$(grep '^HYDRA_SCRIPTS_TX_ID=' .env | cut -d= -f2-)
+
+  docker run -d --name hydra-single -p 4001:4001 \
+    -v "$(pwd)":/keys:ro -v "$(pwd)/devnet":/devnet \
+    ghcr.io/cardano-scaling/hydra-node:1.3.0 \
+    --node-id 1 --api-host 0.0.0.0 --listen 0.0.0.0:5001 \
+    --hydra-signing-key /keys/alice.sk \
+    --cardano-signing-key /keys/devnet/credentials/alice.sk \
+    --hydra-scripts-tx-id "$HYDRA_SCRIPTS_TX_ID" \
+    --ledger-protocol-parameters /devnet/protocol-parameters.json \
+    --testnet-magic 42 --node-socket /devnet/node.socket \
+    --contestation-period 3s --deposit-period 10s \
+    --persistence-dir /devnet/persistence/hydra-single
+
+No --peer, no --hydra-verification-key, no --cardano-verification-key.
+Do not put `--` between the image name and hydra-node flags (docker would pass
+`--` through and hydra-node errors on Invalid option).
+
+Point the Flutter app at host:4001. Fresh persistence: devnet/persistence/hydra-single.

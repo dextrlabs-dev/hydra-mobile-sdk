@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:hydra_client/hydra_client.dart';
 
 import 'services/hydra_commit_submit.dart';
@@ -25,6 +26,9 @@ class _ConnectionTabState extends State<ConnectionTab> {
   final _portCtrl = TextEditingController(text: '4001');
   final _commitUtxoJsonCtrl = TextEditingController();
   final _commitMnemonicCtrl = TextEditingController();
+  final _sideLoadJsonCtrl = TextEditingController();
+  final _decommitJsonCtrl = TextEditingController();
+  final _recoverTxIdCtrl = TextEditingController();
   final _log = <String>[];
 
   HydraSession? _session;
@@ -32,6 +36,10 @@ class _ConnectionTabState extends State<ConnectionTab> {
   String _status = 'Disconnected';
   bool _commitBusy = false;
   String? _commitResult;
+
+  HydraClientConfig? _apiConfig;
+  String _restInspectorText = 'Connect, then use REST actions below.';
+  String? _lastHeadTag;
 
   @override
   void dispose() {
@@ -41,6 +49,9 @@ class _ConnectionTabState extends State<ConnectionTab> {
     _portCtrl.dispose();
     _commitUtxoJsonCtrl.dispose();
     _commitMnemonicCtrl.dispose();
+    _sideLoadJsonCtrl.dispose();
+    _decommitJsonCtrl.dispose();
+    _recoverTxIdCtrl.dispose();
     super.dispose();
   }
 
@@ -63,11 +74,149 @@ class _ConnectionTabState extends State<ConnectionTab> {
     return null;
   }
 
-  Future<void> _connect() async {
-    await _disconnect();
+  HydraClientConfig _configFromFields() {
     final host = _hostCtrl.text.trim();
     final port = int.tryParse(_portCtrl.text.trim()) ?? 4001;
-    final config = HydraClientConfig(host: host, port: port, history: true);
+    return HydraClientConfig(host: host, port: port, history: true);
+  }
+
+  Future<void> _withHttp(Future<void> Function(HydraHttpClient h) fn) async {
+    final cfg = _apiConfig;
+    if (cfg == null) {
+      if (mounted) {
+        setState(() => _restInspectorText = 'Connect first.');
+      }
+      return;
+    }
+    final client = HydraHttpClient(config: cfg);
+    try {
+      await fn(client);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _restInspectorText = 'Error: $e');
+      }
+      _append('HTTP error: $e');
+    } finally {
+      client.close();
+    }
+  }
+
+  void _showResponse(http.Response r, String label) {
+    final b = utf8.decode(r.bodyBytes);
+    if (!mounted) return;
+    setState(() {
+      _restInspectorText = '$label → ${r.statusCode}\n$b';
+    });
+    final short = b.length > 240 ? '${b.substring(0, 240)}…' : b;
+    _append('$label ${r.statusCode}: $short');
+  }
+
+  Future<void> _refreshHead() async {
+    await _withHttp((h) async {
+      final r = await h.getHeadState();
+      final parsed = HydraHeadState.tryParse(utf8.decode(r.bodyBytes));
+      if (mounted) setState(() => _lastHeadTag = parsed?.tag);
+      _showResponse(r, 'GET /head');
+    });
+  }
+
+  Future<void> _getSnapshotUtxo() async {
+    await _withHttp((h) async {
+      final r = await h.getSnapshotUtxo();
+      _showResponse(r, 'GET /snapshot/utxo');
+    });
+  }
+
+  Future<void> _getSnapshotLastSeen() async {
+    await _withHttp((h) async {
+      final r = await h.getSnapshotLastSeen();
+      _showResponse(r, 'GET /snapshot/last-seen');
+    });
+  }
+
+  Future<void> _getSnapshot() async {
+    await _withHttp((h) async {
+      final r = await h.getSnapshot();
+      _showResponse(r, 'GET /snapshot');
+    });
+  }
+
+  Future<void> _getHeadInitialization() async {
+    await _withHttp((h) async {
+      final r = await h.getHeadInitialization();
+      _showResponse(r, 'GET /head-initialization');
+    });
+  }
+
+  Future<void> _postSideLoadSnapshot() async {
+    final raw = _sideLoadJsonCtrl.text.trim();
+    if (raw.isEmpty) {
+      setState(() => _restInspectorText = 'Paste ConfirmedSnapshot JSON for POST /snapshot.');
+      return;
+    }
+    late final Map<String, dynamic> body;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        body = decoded;
+      } else if (decoded is Map) {
+        body = Map<String, dynamic>.from(decoded);
+      } else {
+        setState(() => _restInspectorText = 'Body must be a JSON object.');
+        return;
+      }
+    } catch (e) {
+      setState(() => _restInspectorText = 'Invalid JSON: $e');
+      return;
+    }
+    await _withHttp((h) async {
+      final r = await h.postSnapshot(body);
+      _showResponse(r, 'POST /snapshot (side-load)');
+    });
+  }
+
+  Future<void> _postDecommit() async {
+    final raw = _decommitJsonCtrl.text.trim();
+    if (raw.isEmpty) {
+      setState(() => _restInspectorText = 'Paste Transaction JSON for POST /decommit.');
+      return;
+    }
+    late final Map<String, dynamic> body;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        body = decoded;
+      } else if (decoded is Map) {
+        body = Map<String, dynamic>.from(decoded);
+      } else {
+        setState(() => _restInspectorText = 'Body must be a JSON object.');
+        return;
+      }
+    } catch (e) {
+      setState(() => _restInspectorText = 'Invalid JSON: $e');
+      return;
+    }
+    await _withHttp((h) async {
+      final r = await h.postDecommit(body);
+      _showResponse(r, 'POST /decommit');
+    });
+  }
+
+  Future<void> _deleteRecoverDeposit() async {
+    final txId = _recoverTxIdCtrl.text.trim();
+    if (txId.isEmpty) {
+      setState(() => _restInspectorText = 'Enter deposit tx id for DELETE /commits/{txId}.');
+      return;
+    }
+    await _withHttp((h) async {
+      final r = await h.deleteCommitTx(txId);
+      _showResponse(r, 'DELETE /commits/…');
+    });
+  }
+
+  Future<void> _connect() async {
+    await _disconnect();
+    final config = _configFromFields();
     final session = HydraSession(config);
     setState(() {
       _session = session;
@@ -87,14 +236,20 @@ class _ConnectionTabState extends State<ConnectionTab> {
           _append('ERROR: $e');
         },
       );
-      setState(() => _status = 'Connected');
+      setState(() {
+        _status = 'Connected';
+        _apiConfig = config;
+      });
       widget.onHydraConfig?.call(config);
       _append('WebSocket open: ${config.webSocketUri}');
     } catch (e) {
       setState(() => _status = 'Error');
       _append('Connect failed: $e');
       await session.dispose();
-      setState(() => _session = null);
+      setState(() {
+        _session = null;
+        _apiConfig = null;
+      });
       widget.onHydraConfig?.call(null);
     }
   }
@@ -106,21 +261,29 @@ class _ConnectionTabState extends State<ConnectionTab> {
     setState(() {
       _session = null;
       _status = 'Disconnected';
+      _apiConfig = null;
+      _lastHeadTag = null;
     });
     widget.onGreetingsSlot?.call(null);
     widget.onHydraConfig?.call(null);
   }
 
-  void _sendInit() {
+  void _sendWs(Map<String, dynamic> input, String label) {
     final s = _session;
     if (s == null) return;
     try {
-      s.send(ClientInput.init());
-      _append('Sent Init');
+      s.send(input);
+      _append('Sent $label');
     } catch (e) {
-      _append('Send failed: $e');
+      _append('Send failed ($label): $e');
     }
   }
+
+  void _sendInit() => _sendWs(ClientInput.init(), 'Init');
+  void _sendClose() => _sendWs(ClientInput.close(), 'Close');
+  void _sendSafeClose() => _sendWs(ClientInput.safeClose(), 'SafeClose');
+  void _sendContest() => _sendWs(ClientInput.contest(), 'Contest');
+  void _sendFanout() => _sendWs(ClientInput.fanout(), 'Fanout');
 
   Future<void> _submitCommit() async {
     final session = _session;
@@ -128,9 +291,7 @@ class _ConnectionTabState extends State<ConnectionTab> {
       setState(() => _commitResult = 'Connect first.');
       return;
     }
-    final host = _hostCtrl.text.trim();
-    final port = int.tryParse(_portCtrl.text.trim()) ?? 4001;
-    final config = HydraClientConfig(host: host, port: port, history: true);
+    final config = _apiConfig ?? _configFromFields();
 
     final raw = _commitUtxoJsonCtrl.text.trim();
     final mnemonic = _commitMnemonicCtrl.text.trim();
@@ -181,6 +342,8 @@ class _ConnectionTabState extends State<ConnectionTab> {
 
   @override
   Widget build(BuildContext context) {
+    final canWs = _session != null;
+    final canHttp = _apiConfig != null;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hydra client demo'),
@@ -220,13 +383,144 @@ class _ConnectionTabState extends State<ConnectionTab> {
               children: [
                 FilledButton(onPressed: _connect, child: const Text('Connect')),
                 OutlinedButton(onPressed: _disconnect, child: const Text('Disconnect')),
-                FilledButton.tonal(
-                  onPressed: _session != null ? _sendInit : null,
-                  child: const Text('Send Init'),
-                ),
               ],
             ),
             const SizedBox(height: 8),
+            Expanded(
+              child: ListView(
+                children: [
+            ExpansionTile(
+              initiallyExpanded: true,
+              title: const Text('Head protocol (WebSocket)'),
+              subtitle: Text(
+                _lastHeadTag != null ? 'Last GET /head tag: $_lastHeadTag' : 'Refresh head (REST) for tag',
+                style: const TextStyle(fontSize: 12),
+              ),
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: canWs ? _sendInit : null,
+                      child: const Text('Init'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canWs ? _sendClose : null,
+                      child: const Text('Close'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canWs ? _sendSafeClose : null,
+                      child: const Text('SafeClose'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canWs ? _sendContest : null,
+                      child: const Text('Contest'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canWs ? _sendFanout : null,
+                      child: const Text('Fanout'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+            ExpansionTile(
+              title: const Text('REST: head & snapshots'),
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: canHttp ? _refreshHead : null,
+                      child: const Text('GET /head'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canHttp ? _getSnapshotUtxo : null,
+                      child: const Text('GET /snapshot/utxo'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canHttp ? _getSnapshotLastSeen : null,
+                      child: const Text('GET /snapshot/last-seen'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canHttp ? _getSnapshot : null,
+                      child: const Text('GET /snapshot'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: canHttp ? _getHeadInitialization : null,
+                      child: const Text('GET /head-initialization'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(8),
+                      child: SelectableText(
+                        _restInspectorText,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+            ExpansionTile(
+              title: const Text('Advanced: side-load / decommit / recover'),
+              subtitle: const Text('Danger: can break head state if misused'),
+              children: [
+                TextField(
+                  controller: _sideLoadJsonCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'POST /snapshot — ConfirmedSnapshot JSON',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                ),
+                FilledButton.tonal(
+                  onPressed: canHttp ? _postSideLoadSnapshot : null,
+                  child: const Text('POST /snapshot'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _decommitJsonCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'POST /decommit — Transaction JSON',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                ),
+                FilledButton.tonal(
+                  onPressed: canHttp ? _postDecommit : null,
+                  child: const Text('POST /decommit'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _recoverTxIdCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'DELETE /commits/{txId} — deposit tx id (hex)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                FilledButton.tonal(
+                  onPressed: canHttp ? _deleteRecoverDeposit : null,
+                  child: const Text('DELETE /commits/…'),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
             ExpansionTile(
               title: const Text('Commit UTxO to head (L1)'),
               subtitle: const Text('After Init, draft commit → sign → submit to Cardano'),
@@ -262,7 +556,7 @@ class _ConnectionTabState extends State<ConnectionTab> {
                 ),
                 const SizedBox(height: 8),
                 FilledButton.icon(
-                  onPressed: (_session != null && !_commitBusy) ? _submitCommit : null,
+                  onPressed: (canWs && !_commitBusy) ? _submitCommit : null,
                   icon: _commitBusy
                       ? const SizedBox(
                           width: 18,
@@ -285,7 +579,8 @@ class _ConnectionTabState extends State<ConnectionTab> {
             const SizedBox(height: 8),
             const Text('Log (newest first)', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Expanded(
+            SizedBox(
+              height: 160,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).dividerColor),
@@ -299,6 +594,9 @@ class _ConnectionTabState extends State<ConnectionTab> {
                     style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                   ),
                 ),
+              ),
+            ),
+                ],
               ),
             ),
           ],

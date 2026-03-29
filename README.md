@@ -7,8 +7,9 @@ Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hyd
 | Path | Description |
 |------|-------------|
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Version pins, scope, and API references |
+| [docs/API_MAPPING.md](docs/API_MAPPING.md) | Hydra `operationId` ↔ Dart `HydraHttpClient` (extend when PDFs land) |
 | [packages/hydra_client](packages/hydra_client) | Publishable Dart package |
-| [example/hydra_demo](example/hydra_demo) | Sample Flutter UI (connect, log messages, send `Init`) |
+| [example/hydra_demo](example/hydra_demo) | Flutter UI: WS head protocol, REST snapshots/head, L1 commit, dice L2 |
 
 ## Quick start (library)
 

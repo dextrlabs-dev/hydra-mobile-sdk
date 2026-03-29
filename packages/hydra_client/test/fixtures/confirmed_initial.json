@@ -1,0 +1,10 @@
+{
+  "tag": "InitialSnapshot",
+  "headId": "83d36c9ffb1f8bac1cee31462cf73fdd420be5b37e13b380835d13fc",
+  "initialUTxO": {
+    "aa#0": {
+      "address": "addr_test1qq",
+      "value": { "lovelace": 1000000 }
+    }
+  }
+}

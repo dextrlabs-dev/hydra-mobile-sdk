@@ -1,0 +1,13 @@
+{
+  "tag": "Initial",
+  "contents": {
+    "headId": "83d36c9ffb1f8bac1cee31462cf73fdd420be5b37e13b380835d13fc",
+    "pendingCommits": [],
+    "parameters": {
+      "contestationPeriod": 3,
+      "parties": [
+        { "vkey": "b37aabd81024c043f53a069c91e51a5b52e4ea399ae17ee1fe3cb9c44db707eb" }
+      ]
+    }
+  }
+}

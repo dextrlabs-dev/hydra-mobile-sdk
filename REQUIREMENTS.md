@@ -27,9 +27,30 @@ When upgrading hydra-node, re-run tests and refresh JSON fixtures; breaking API 
 
 ### HTTP client
 
-- `POST /commit` — draft incremental commit / deposit (request body per `DraftCommitTxRequest` in api.yaml; aligns with [deposit JavaScript tutorial](https://hydra.family/head-protocol/docs/how-to/deposit-with-javascript-sdk)).
-- `POST /cardano-transaction` — submit L1 transaction after signing (body `Transaction`: `cborHex`, `type`, `description`, optional `txId`).
-- Convenience `GET` helpers where useful for apps: e.g. `/protocol-parameters`, `/snapshot/utxo` (optional in v1; documented in package API).
+Thin wrappers on `hydra-node` REST paths (see [docs/API_MAPPING.md](docs/API_MAPPING.md) for operationId ↔ Dart mapping).
+
+- `GET /head` — head state (`HydraHeadState.tryParse` on the body).
+- `GET /snapshot/utxo` — confirmed snapshot UTxO set (`parseHydraUtxoMap`).
+- `GET /snapshot/last-seen` — last seen snapshot (`HydraSeenSnapshot.tryParse`).
+- `GET /snapshot` — confirmed snapshot (`HydraConfirmedSnapshot.tryParse`).
+- `POST /snapshot` — side-load confirmed snapshot (body per api.yaml).
+- `POST /decommit` — submit decommit transaction (`Transaction` JSON).
+- `GET /head-initialization` — last head initialization timestamp.
+- `DELETE /commits/{txId}` — recover deposited UTxO by L1 deposit tx id.
+- `POST /commit` — draft commit transaction (`DraftCommitTxRequest`).
+- `GET /commits` — pending deposit tx ids.
+- `POST /cardano-transaction` — submit L1 transaction after signing.
+- `POST /transaction` — submit L2 transaction to the head.
+- `GET /protocol-parameters` — ledger protocol parameters.
+
+### JSON models (partial)
+
+- `HydraHeadState` — `GET /head` envelope (`tag`, `contents`, helpers for `headId`, `pendingCommits`, `parameters`, `committed`).
+- `HydraUtxoMap` / `parseHydraUtxoMap` — `UTxO` map shape.
+- `HydraSeenSnapshot` — discriminated variants for `GET /snapshot/last-seen`.
+- `HydraConfirmedSnapshot` — `InitialSnapshot` / `ConfirmedSnapshot` for `GET /snapshot`.
+
+**Naming alignment with project PDFs:** When Technical Assessment / Architecture Blueprint PDFs are added to the repo, reconcile public Dart names against them using `docs/API_MAPPING.md` (Hydra paths remain canonical).
 
 ### Security & operational
 
