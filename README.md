@@ -50,7 +50,7 @@ dependencies:
 
    If the repo was cloned without platform folders, run once: `flutter create . --platforms=linux,android,ios` (adjust list to your targets).
 
-3. In the app: set host/port to match the node (`127.0.0.1` / `4001` for local demo), tap **Connect**, observe **Greetings** and stream events; use **Send Init** only when you understand demo wallet / head state (same cautions as `hydra-tui`).
+3. In the app: set host/port to match the node (`127.0.0.1` / `4001` for local demo), tap **Connect**, observe **Greetings** and stream events; use **Send Init** when appropriate for your head. To fund the head from L1, expand **Commit UTxO to head (L1)**, paste `cardano-cli query utxo --output-json` for your address (devnet magic `42`), enter the same BIP39 mnemonic as in the Dice tab, then **Draft, sign & submit commit**. After the head is **open** with snapshot UTxOs, L2 dice rolls can proceed.
 
 ## Optional integration testing
 

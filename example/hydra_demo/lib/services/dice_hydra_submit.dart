@@ -40,7 +40,10 @@ class DiceHydraSubmit {
       }
       final utxoMap = jsonDecode(utf8.decode(utxoRes.bodyBytes)) as Map<String, dynamic>;
       if (utxoMap.isEmpty) {
-        throw StateError('Empty UTxO set in head.');
+        throw StateError(
+          'Empty UTxO set in head. On the Hydra tab, expand '
+          '"Commit UTxO to head (L1)" after Init, then draft/sign/submit commit.',
+        );
       }
 
       const derivation = kd.CatalystKeyDerivation();

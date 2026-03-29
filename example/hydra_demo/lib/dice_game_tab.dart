@@ -94,20 +94,38 @@ class _DiceGameTabState extends State<DiceGameTab> {
         padding: const EdgeInsets.all(16),
         children: [
           Card(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Devnet / demo only',
-                    style: Theme.of(context).textTheme.titleSmall,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Requires an open Hydra head with at least one UTxO whose address '
-                    'matches payment key m/1852\'/1815\'/0\'/0/0 from your mnemonic. '
-                    'Use the same host/port as on the Hydra tab.',
+                  const SizedBox(height: 10),
+                  Text.rich(
+                    TextSpan(
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      children: const [
+                        TextSpan(
+                          text:
+                              'Requires an open Hydra head with at least one UTxO whose address '
+                              'matches payment key ',
+                        ),
+                        TextSpan(
+                          text: "m/1852'/1815'/0'/0/0",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(
+                          text:
+                              ' from your mnemonic. Use the same host/port as on the Hydra tab.',
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
