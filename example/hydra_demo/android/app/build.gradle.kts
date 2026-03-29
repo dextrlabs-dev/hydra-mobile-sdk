@@ -7,16 +7,18 @@ plugins {
 
 android {
     namespace = "com.example.hydra_demo"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Do not use flutter.compileSdkVersion / flutter.ndkVersion here: Kotlin DSL + AGP 8.7 can leave javac classpath
+    // providers unset ("Cannot query the value of this provider"). Keep in sync with Flutter SDK defaults / pubspec.
+    compileSdk = 35
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -24,8 +26,8 @@ android {
         applicationId = "com.example.hydra_demo"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 24
+        targetSdk = 35 // align with compileSdk; raise when Play / Flutter defaults move
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
