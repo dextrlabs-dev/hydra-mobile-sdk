@@ -7,7 +7,9 @@ Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hyd
 | Path | Description |
 |------|-------------|
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Version pins, scope, and API references |
-| [docs/API_MAPPING.md](docs/API_MAPPING.md) | Hydra `operationId` ↔ Dart `HydraHttpClient` (extend when PDFs land) |
+| [docs/API_MAPPING.md](docs/API_MAPPING.md) | Hydra `operationId` ↔ Dart `HydraHttpClient` |
+| [docs/PDF_COMPLIANCE.md](docs/PDF_COMPLIANCE.md) | PDF requirements vs implemented scope |
+| [CHANGELOG.md](CHANGELOG.md) | Package and example release notes |
 | [packages/hydra_client](packages/hydra_client) | Publishable Dart package |
 | [example/hydra_demo](example/hydra_demo) | Flutter UI: WS head protocol, REST snapshots/head, L1 commit, dice L2 |
 
@@ -66,3 +68,13 @@ This is intentionally not wired into default `dart test` to avoid a Docker depen
 
 - [Hydra API reference (unstable)](https://hydra.family/head-protocol/unstable/api-reference)
 - AsyncAPI source: `hydra-node/json-schemas/api.yaml` in the Hydra repo (version aligned with [REQUIREMENTS.md](REQUIREMENTS.md))
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `dart analyze` / `dart test` on `packages/hydra_client` and `flutter test` / `dart analyze lib/` on `example/hydra_demo`.
+
+## Publishing `hydra_client` to pub.dev (maintainers)
+
+1. Bump `version` in [packages/hydra_client/pubspec.yaml](packages/hydra_client/pubspec.yaml) and add an entry to [CHANGELOG.md](CHANGELOG.md).
+2. From `packages/hydra_client`: `dart pub publish --dry-run` and fix any reported issues.
+3. `dart pub publish` (with appropriate `PUB_CREDENTIALS` / OAuth).

@@ -5,6 +5,12 @@ import 'package:http/http.dart' as http;
 import 'config.dart';
 
 /// HTTP endpoints exposed by `hydra-node` alongside WebSockets.
+///
+/// **TLS certificate pinning:** pass a custom [`http.Client`](https://pub.dev/documentation/http/latest/http/Client-class.html)
+/// configured with [`dart:io` `HttpClient`](https://api.dart.dev/stable/dart-io/HttpClient-class.html)
+/// and [`SecurityContext`](https://api.dart.dev/stable/dart-io/SecurityContext-class.html)
+/// (e.g. `IOClient` from `package:http/io_client.dart`) if you need pinned roots.
+/// The default client uses the platform trust store only.
 class HydraHttpClient {
   HydraHttpClient({required HydraClientConfig config, http.Client? httpClient})
       : _config = config,

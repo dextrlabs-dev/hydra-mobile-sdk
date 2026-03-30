@@ -1,0 +1,9 @@
+{
+  "tag": "Snapshot",
+  "seq": 10,
+  "timestamp": "2025-01-01T00:00:02.000Z",
+  "snapshot": {
+    "tag": "ConfirmedSnapshot",
+    "headId": "test"
+  }
+}

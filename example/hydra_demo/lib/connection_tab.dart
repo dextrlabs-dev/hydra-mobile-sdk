@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:hydra_client/hydra_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/commit_sample_fixture.dart';
 import 'services/hydra_commit_submit.dart';
+import 'services/prefs_hydra_state_store.dart';
 
 class ConnectionTab extends StatefulWidget {
   const ConnectionTab({
@@ -33,9 +35,37 @@ class _ConnectionTabState extends State<ConnectionTab> {
   final _recoverTxIdCtrl = TextEditingController();
   final _log = <String>[];
 
-  HydraSession? _session;
+  HydraHeadFacade? _facade;
   StreamSubscription<HydraInboundMessage>? _sub;
+  StreamSubscription<HydraConnectionState>? _connSub;
   String _status = 'Disconnected';
+  bool _autoReconnect = true;
+  bool _persistSeq = false;
+  SharedPreferences? _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final p = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _prefs = p;
+      _autoReconnect = p.getBool('hydra_demo_auto_reconnect') ?? true;
+      _persistSeq = p.getBool('hydra_demo_persist_seq') ?? false;
+    });
+  }
+
+  Future<void> _persistSettings() async {
+    final p = _prefs ?? await SharedPreferences.getInstance();
+    await p.setBool('hydra_demo_auto_reconnect', _autoReconnect);
+    await p.setBool('hydra_demo_persist_seq', _persistSeq);
+  }
   bool _commitBusy = false;
   String? _commitResult;
 
@@ -46,7 +76,8 @@ class _ConnectionTabState extends State<ConnectionTab> {
   @override
   void dispose() {
     _sub?.cancel();
-    unawaited(_session?.dispose());
+    _connSub?.cancel();
+    unawaited(_facade?.dispose());
     _hostCtrl.dispose();
     _portCtrl.dispose();
     _commitUtxoJsonCtrl.dispose();
@@ -83,23 +114,21 @@ class _ConnectionTabState extends State<ConnectionTab> {
   }
 
   Future<void> _withHttp(Future<void> Function(HydraHttpClient h) fn) async {
-    final cfg = _apiConfig;
-    if (cfg == null) {
+    final f = _facade;
+    if (f == null ||
+        f.connectionStateValue != HydraConnectionState.connected) {
       if (mounted) {
         setState(() => _restInspectorText = 'Connect first.');
       }
       return;
     }
-    final client = HydraHttpClient(config: cfg);
     try {
-      await fn(client);
+      await fn(f.hydraHttp);
     } catch (e) {
       if (mounted) {
         setState(() => _restInspectorText = 'Error: $e');
       }
       _append('HTTP error: $e');
-    } finally {
-      client.close();
     }
   }
 
@@ -216,18 +245,53 @@ class _ConnectionTabState extends State<ConnectionTab> {
     });
   }
 
+  String _statusLabel(HydraConnectionState s) => switch (s) {
+        HydraConnectionState.disconnected => 'Disconnected',
+        HydraConnectionState.connecting => 'Connecting…',
+        HydraConnectionState.connected => 'Connected',
+        HydraConnectionState.reconnecting => 'Reconnecting…',
+      };
+
   Future<void> _connect() async {
     await _disconnect();
     final config = _configFromFields();
-    final session = HydraSession(config);
+    final p = _prefs ?? await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
+    _prefs = p;
+
+    final store = _persistSeq ? PrefsHydraStateStore(p) : InMemoryHydraStateStore();
+    final syncPolicy = _persistSeq
+        ? HydraSyncPolicy.dedupeAndRefreshOnGap
+        : HydraSyncPolicy.none;
+
+    final facade = HydraHeadFacade(
+      config: config,
+      reconnectPolicy: HydraReconnectPolicy(autoReconnect: _autoReconnect),
+      syncPolicy: syncPolicy,
+      stateStore: store,
+      onSeqGap: (last, next) =>
+          _append('Seq gap: last=$last incoming=$next (snapshot hint refresh)'),
+    );
+
     setState(() {
-      _session = session;
+      _facade = facade;
       _status = 'Connecting…';
     });
     widget.onHydraConfig?.call(null);
+
+    await _connSub?.cancel();
+    _connSub = facade.connectionState.listen((s) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _status = _statusLabel(s));
+    });
+
     try {
-      await session.connect();
-      _sub = session.messages.listen(
+      await _sub?.cancel();
+      _sub = facade.messages.listen(
         (m) {
           if (m is HydraGreetings) {
             widget.onGreetingsSlot?.call(_slotFromGreetings(m));
@@ -238,18 +302,28 @@ class _ConnectionTabState extends State<ConnectionTab> {
           _append('ERROR: $e');
         },
       );
+      await facade.connect(restoreSeq: _persistSeq);
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        _status = 'Connected';
         _apiConfig = config;
       });
       widget.onHydraConfig?.call(config);
-      _append('WebSocket open: ${config.webSocketUri}');
+      _append('HydraHeadFacade WebSocket: ${config.webSocketUri}');
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       setState(() => _status = 'Error');
       _append('Connect failed: $e');
-      await session.dispose();
+      await _connSub?.cancel();
+      _connSub = null;
+      await _sub?.cancel();
+      _sub = null;
+      await facade.dispose();
       setState(() {
-        _session = null;
+        _facade = null;
         _apiConfig = null;
       });
       widget.onHydraConfig?.call(null);
@@ -259,9 +333,11 @@ class _ConnectionTabState extends State<ConnectionTab> {
   Future<void> _disconnect() async {
     await _sub?.cancel();
     _sub = null;
-    await _session?.dispose();
+    await _connSub?.cancel();
+    _connSub = null;
+    await _facade?.dispose();
     setState(() {
-      _session = null;
+      _facade = null;
       _status = 'Disconnected';
       _apiConfig = null;
       _lastHeadTag = null;
@@ -270,22 +346,70 @@ class _ConnectionTabState extends State<ConnectionTab> {
     widget.onHydraConfig?.call(null);
   }
 
-  void _sendWs(Map<String, dynamic> input, String label) {
-    final s = _session;
-    if (s == null) return;
+  void _sendInit() {
+    final f = _facade;
+    if (f == null) {
+      return;
+    }
     try {
-      s.send(input);
-      _append('Sent $label');
+      f.sendInit();
+      _append('Sent Init');
     } catch (e) {
-      _append('Send failed ($label): $e');
+      _append('Send failed (Init): $e');
     }
   }
 
-  void _sendInit() => _sendWs(ClientInput.init(), 'Init');
-  void _sendClose() => _sendWs(ClientInput.close(), 'Close');
-  void _sendSafeClose() => _sendWs(ClientInput.safeClose(), 'SafeClose');
-  void _sendContest() => _sendWs(ClientInput.contest(), 'Contest');
-  void _sendFanout() => _sendWs(ClientInput.fanout(), 'Fanout');
+  void _sendClose() {
+    final f = _facade;
+    if (f == null) {
+      return;
+    }
+    try {
+      f.sendClose();
+      _append('Sent Close');
+    } catch (e) {
+      _append('Send failed (Close): $e');
+    }
+  }
+
+  void _sendSafeClose() {
+    final f = _facade;
+    if (f == null) {
+      return;
+    }
+    try {
+      f.sendSafeClose();
+      _append('Sent SafeClose');
+    } catch (e) {
+      _append('Send failed (SafeClose): $e');
+    }
+  }
+
+  void _sendContest() {
+    final f = _facade;
+    if (f == null) {
+      return;
+    }
+    try {
+      f.sendContest();
+      _append('Sent Contest');
+    } catch (e) {
+      _append('Send failed (Contest): $e');
+    }
+  }
+
+  void _sendFanout() {
+    final f = _facade;
+    if (f == null) {
+      return;
+    }
+    try {
+      f.sendFanout();
+      _append('Sent Fanout');
+    } catch (e) {
+      _append('Send failed (Fanout): $e');
+    }
+  }
 
   void _loadSampleCommitFixture() {
     setState(() {
@@ -297,8 +421,9 @@ class _ConnectionTabState extends State<ConnectionTab> {
   }
 
   Future<void> _submitCommit() async {
-    final session = _session;
-    if (session == null) {
+    final f = _facade;
+    if (f == null ||
+        f.connectionStateValue != HydraConnectionState.connected) {
       setState(() => _commitResult = 'Connect first.');
       return;
     }
@@ -353,8 +478,9 @@ class _ConnectionTabState extends State<ConnectionTab> {
 
   @override
   Widget build(BuildContext context) {
-    final canWs = _session != null;
-    final canHttp = _apiConfig != null;
+    final canWs = _facade != null &&
+        _facade!.connectionStateValue == HydraConnectionState.connected;
+    final canHttp = canWs;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hydra client demo'),
@@ -392,6 +518,32 @@ class _ConnectionTabState extends State<ConnectionTab> {
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Auto-reconnect WebSocket'),
+                      subtitle: const Text('Backoff up to 3s between attempts'),
+                      value: _autoReconnect,
+                      onChanged: _facade != null
+                          ? null
+                          : (v) {
+                              setState(() => _autoReconnect = v);
+                              unawaited(_persistSettings());
+                            },
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Persist last seq + dedupe'),
+                      subtitle: const Text(
+                        'Survive replay after reconnect; gaps refresh last-seen hint',
+                      ),
+                      value: _persistSeq,
+                      onChanged: _facade != null
+                          ? null
+                          : (v) {
+                              setState(() => _persistSeq = v);
+                              unawaited(_persistSettings());
+                            },
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -633,7 +785,13 @@ class _ConnectionTabState extends State<ConnectionTab> {
 
 String _formatMessage(HydraInboundMessage m) {
   return switch (m) {
-    HydraGreetings g => 'Greetings headStatus=${g.headStatus} version=${g.hydraNodeVersion}',
+    HydraGreetings g =>
+      'Greetings headStatus=${g.headStatus} version=${g.hydraNodeVersion}',
+    HydraTxValid v =>
+      '[${v.seq}] TxValid id=${v.transactionId ?? v.json['transactionId']}',
+    HydraTxInvalid i =>
+      '[${i.seq}] TxInvalid ${i.validationError}',
+    HydraServerSnapshot s => '[${s.seq}] Snapshot',
     HydraTimedServerOutput t => '[${t.seq}] ${t.tag}',
     HydraInvalidInput i => 'InvalidInput: ${i.reason}',
     HydraRawMessage r => 'Raw: ${r.json['tag'] ?? r.json.keys.join(',')}',

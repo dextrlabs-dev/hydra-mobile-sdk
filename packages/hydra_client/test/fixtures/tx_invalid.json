@@ -1,0 +1,6 @@
+{
+  "tag": "TxInvalid",
+  "seq": 43,
+  "timestamp": "2025-01-01T00:00:01.000Z",
+  "validationError": "ValidationError"
+}

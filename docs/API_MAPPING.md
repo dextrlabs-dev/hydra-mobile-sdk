@@ -19,3 +19,5 @@ When **Technical_Assessment** / **Architecture_Blueprint** PDFs are added under 
 | `getProtocolParameters` | GET | `/protocol-parameters` | `HydraHttpClient.getProtocolParameters()` |
 
 WebSocket client inputs: `ClientInput` in `client_input.dart` (`Init`, `Close`, `SafeClose`, `Contest`, `Fanout`, …).
+
+Higher-level orchestration: `HydraHeadFacade` (reconnecting WS + this HTTP client + optional `SeqTracker`). Low-level: `HydraSession` / `ReconnectingHydraSession`.

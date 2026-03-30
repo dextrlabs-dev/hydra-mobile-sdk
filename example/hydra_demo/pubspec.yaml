@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.2
+  shared_preferences: ^2.3.3
   hydra_client:
     path: ../../packages/hydra_client
   # 1.x requires Flutter >=3.27.3; stay on 0.5.x / 0.1.x for Flutter 3.24 stable.

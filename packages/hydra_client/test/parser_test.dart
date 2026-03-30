@@ -26,6 +26,30 @@ void main() {
     expect(t.timestamp, isNotNull);
   });
 
+  test('parses TxValid', () async {
+    final msg = parseHydraMessage(await _fixture('tx_valid.json'));
+    expect(msg, isA<HydraTxValid>());
+    final v = msg as HydraTxValid;
+    expect(v.seq, 42);
+    expect(v.transactionId, 'deadbeef');
+  });
+
+  test('parses TxInvalid', () async {
+    final msg = parseHydraMessage(await _fixture('tx_invalid.json'));
+    expect(msg, isA<HydraTxInvalid>());
+    final inv = msg as HydraTxInvalid;
+    expect(inv.seq, 43);
+    expect(inv.validationError, 'ValidationError');
+  });
+
+  test('parses Snapshot timed output', () async {
+    final msg = parseHydraMessage(await _fixture('snapshot_timed.json'));
+    expect(msg, isA<HydraServerSnapshot>());
+    final s = msg as HydraServerSnapshot;
+    expect(s.seq, 10);
+    expect(s.json['snapshot'], isA<Map<String, dynamic>>());
+  });
+
   test('parses InvalidInput', () async {
     final msg = parseHydraMessage(await _fixture('invalid_input.json'));
     expect(msg, isA<HydraInvalidInput>());

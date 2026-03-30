@@ -29,12 +29,18 @@ HydraInboundMessage parseHydraMessage(String text) {
           ? seqRaw.toInt()
           : null;
   if (tag is String && seq != null) {
-    return HydraTimedServerOutput(
-      tag: tag,
-      seq: seq,
-      timestamp: m['timestamp'] as String?,
-      json: m,
-    );
+    final ts = m['timestamp'] as String?;
+    return switch (tag) {
+      'TxValid' => HydraTxValid(seq: seq, timestamp: ts, json: m),
+      'TxInvalid' => HydraTxInvalid(seq: seq, timestamp: ts, json: m),
+      'Snapshot' => HydraServerSnapshot(seq: seq, timestamp: ts, json: m),
+      _ => HydraTimedServerOutput(
+          tag: tag,
+          seq: seq,
+          timestamp: ts,
+          json: m,
+        ),
+    };
   }
 
   if (tag is String) {

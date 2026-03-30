@@ -21,9 +21,13 @@ When upgrading hydra-node, re-run tests and refresh JSON fixtures; breaking API 
 - Send **client inputs** as JSON objects with a `tag` field (`Init`, `NewTx`, `Recover`, `Decommit`, `Close`, `SafeClose`, `Contest`, `Fanout`, `SideLoadSnapshot`) per schema.
 - Receive and classify:
   - **Greetings** — first message on connect; marks end of “no history yet” baseline; may omit `seq` (not wrapped in `TimedServerOutput`).
-  - **Timed outputs** — objects including `tag`, `seq`, and `timestamp` for protocol/server events.
+  - **Timed outputs** — objects including `tag`, `seq`, and `timestamp` for protocol/server events; common tags also map to **`HydraTxValid`**, **`HydraTxInvalid`**, **`HydraServerSnapshot`**; unknown tags remain **`HydraTimedServerOutput`** / **`HydraRawMessage`**.
   - **InvalidInput** — parse errors for malformed client JSON (`reason`, `input`).
-- Expose raw `Map<String, dynamic>` for advanced callers until full typed models exist for every `ServerOutput` variant.
+- **`HydraSession`** — single WebSocket lifecycle (one socket).
+- **`ReconnectingHydraSession`** — same framing as above with automatic reconnect (exponential backoff capped at 3s by default), broadcast `messages` across socket cycles. Use `HydraClientConfig.history: true` when you rely on server replay after reconnect.
+- **`SeqTracker`** + **`HydraSyncPolicy`** — optional deduplication of replayed `seq` and best-effort `GET /snapshot/last-seen` body persistence on sequence gaps (when policy `dedupeAndRefreshOnGap` and `HydraHttpClient` supplied).
+- **`HydraHeadFacade`** — developer-facing composition of reconnecting WS + `HydraHttpClient` + optional seq store (`HydraStateStore`).
+- Expose raw `Map<String, dynamic>` on typed carriers for fields not yet modeled.
 
 ### HTTP client
 
@@ -56,6 +60,8 @@ Thin wrappers on `hydra-node` REST paths (see [docs/API_MAPPING.md](docs/API_MAP
 
 - Do not log mnemonics, signing keys, or full CBOR of txs in production log levels.
 - TLS (`wss` / `https`) SHOULD be used for non-local deployments.
+- **Certificate pinning** is not implemented in-package: pass a suitably configured `dart:io` `HttpClient` wrapped in `package:http` `IOClient` into `HydraHttpClient` / `HydraHeadFacade` if you need custom trust anchors.
+- **`HydraSigner`** is an app contract for L2 signing; no Secure Enclave / Keystore backend ships in `hydra_client`.
 
 ## Out of scope (v1)
 
