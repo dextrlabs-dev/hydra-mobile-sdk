@@ -10,8 +10,8 @@ import 'package:http/http.dart' as http;
 class OgmiosUtxoLoader {
   OgmiosUtxoLoader._();
 
-  /// Default local Ogmios HTTP endpoint.
-  static const defaultBaseUrl = 'http://127.0.0.1:1337';
+  /// Default Ogmios HTTP endpoint (remote demo node).
+  static const defaultBaseUrl = 'http://139.59.94.155:1337';
 
   /// Query UTxO set from Ogmios and filter entries where `address == [address]`.
   ///

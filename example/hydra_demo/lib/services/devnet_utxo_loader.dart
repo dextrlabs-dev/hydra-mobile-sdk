@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:catalyst_cardano_serialization/catalyst_cardano_serialization.dart';
 import 'package:catalyst_key_derivation/catalyst_key_derivation.dart' as kd;
 
+import 'catalyst_init_once.dart';
+
 /// Loads Cardano L1 UTxOs for the payment address derived from a BIP39 mnemonic.
 ///
 /// This is **demo-only** and intended for the local Hydra `demo/` devnet where
@@ -23,7 +25,7 @@ class DevnetUtxoLoader {
     String paymentDerivationPath = paymentPath,
     String stakeDerivationPath = stakePath,
   }) async {
-    await kd.CatalystKeyDerivation.init();
+    await CatalystInitOnce.ensureInitialized();
     const derivation = kd.CatalystKeyDerivation();
     final master = await derivation.deriveMasterKey(mnemonic: mnemonic.trim());
     final paySk = await master.derivePrivateKey(path: paymentDerivationPath);

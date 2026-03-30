@@ -788,7 +788,7 @@ class _ConnectionTabState extends State<ConnectionTab> {
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Use Ogmios indexer for UTxOs'),
-                          subtitle: const Text('Queries http://127.0.0.1:1337 (JSON-RPC)'),
+                          subtitle: const Text('Queries http://139.59.94.155:1337 (JSON-RPC)'),
                           value: _useOgmiosIndexer,
                           onChanged: _utxoBusy
                               ? null
