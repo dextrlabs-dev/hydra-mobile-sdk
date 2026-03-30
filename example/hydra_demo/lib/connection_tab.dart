@@ -4,13 +4,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:hydra_client/hydra_client.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/commit_sample_fixture.dart';
 import 'services/hydra_commit_submit.dart';
+<<<<<<< Updated upstream
 import 'services/devnet_utxo_loader.dart';
 import 'services/ogmios_utxo_loader.dart';
 import 'services/prefs_hydra_state_store.dart';
+=======
+>>>>>>> Stashed changes
 
 class ConnectionTab extends StatefulWidget {
   const ConnectionTab({
@@ -49,32 +51,6 @@ class _ConnectionTabState extends State<ConnectionTab> {
   StreamSubscription<HydraConnectionState>? _connSub;
   String _status = 'Disconnected';
   bool _autoReconnect = true;
-  bool _persistSeq = false;
-  SharedPreferences? _prefs;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPrefs();
-  }
-
-  Future<void> _loadPrefs() async {
-    final p = await SharedPreferences.getInstance();
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _prefs = p;
-      _autoReconnect = p.getBool('hydra_demo_auto_reconnect') ?? true;
-      _persistSeq = p.getBool('hydra_demo_persist_seq') ?? false;
-    });
-  }
-
-  Future<void> _persistSettings() async {
-    final p = _prefs ?? await SharedPreferences.getInstance();
-    await p.setBool('hydra_demo_auto_reconnect', _autoReconnect);
-    await p.setBool('hydra_demo_persist_seq', _persistSeq);
-  }
   bool _commitBusy = false;
   String? _commitResult;
 
@@ -98,6 +74,10 @@ class _ConnectionTabState extends State<ConnectionTab> {
   }
 
   void _append(String line) {
+    if (line.startsWith('SyncedStatusReport')) {
+      // Prevent the periodic status report from flooding the log UI.
+      return;
+    }
     setState(() {
       _log.insert(0, line);
       if (_log.length > 200) _log.removeLast();
@@ -264,16 +244,12 @@ class _ConnectionTabState extends State<ConnectionTab> {
   Future<void> _connect() async {
     await _disconnect();
     final config = _configFromFields();
-    final p = _prefs ?? await SharedPreferences.getInstance();
     if (!mounted) {
       return;
     }
-    _prefs = p;
 
-    final store = _persistSeq ? PrefsHydraStateStore(p) : InMemoryHydraStateStore();
-    final syncPolicy = _persistSeq
-        ? HydraSyncPolicy.dedupeAndRefreshOnGap
-        : HydraSyncPolicy.none;
+    final store = InMemoryHydraStateStore();
+    final syncPolicy = HydraSyncPolicy.none;
 
     final facade = HydraHeadFacade(
       config: config,
@@ -311,7 +287,7 @@ class _ConnectionTabState extends State<ConnectionTab> {
           _append('ERROR: $e');
         },
       );
-      await facade.connect(restoreSeq: _persistSeq);
+      await facade.connect(restoreSeq: false);
       if (!mounted) {
         return;
       }
@@ -643,21 +619,6 @@ class _ConnectionTabState extends State<ConnectionTab> {
                           ? null
                           : (v) {
                               setState(() => _autoReconnect = v);
-                              unawaited(_persistSettings());
-                            },
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Persist last seq + dedupe'),
-                      subtitle: const Text(
-                        'Survive replay after reconnect; gaps refresh last-seen hint',
-                      ),
-                      value: _persistSeq,
-                      onChanged: _facade != null
-                          ? null
-                          : (v) {
-                              setState(() => _persistSeq = v);
-                              unawaited(_persistSettings());
                             },
                     ),
                     const SizedBox(height: 12),
@@ -993,6 +954,17 @@ String _formatMessage(HydraInboundMessage m) {
     HydraServerSnapshot s => '[${s.seq}] Snapshot',
     HydraTimedServerOutput t => '[${t.seq}] ${t.tag}',
     HydraInvalidInput i => 'InvalidInput: ${i.reason}',
-    HydraRawMessage r => 'Raw: ${r.json['tag'] ?? r.json.keys.join(',')}',
+    HydraRawMessage r => _formatRaw(r),
   };
+}
+
+String _formatRaw(HydraRawMessage r) {
+  final tag = r.json['tag'];
+  if (tag == 'SyncedStatusReport') {
+    // Hydra can emit these periodically; they're noisy in a UI log.
+    // Still show a concise line instead of the raw tag spam.
+    final st = r.json['chainSyncedStatus'] ?? r.json['synced'] ?? '';
+    return 'SyncedStatusReport ${st.toString()}'.trim();
+  }
+  return 'Raw: ${tag ?? r.json.keys.join(',')}';
 }

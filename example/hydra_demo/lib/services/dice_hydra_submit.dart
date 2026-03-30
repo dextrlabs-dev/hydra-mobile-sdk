@@ -7,7 +7,8 @@ import 'package:cbor/cbor.dart' as cbor;
 import 'package:convert/convert.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:hydra_client/hydra_client.dart';
-import 'package:http/http.dart' as http;
+
+import 'l2_tx_submit_helpers.dart';
 
 /// Builds a small L2 transaction with dice metadata, signs with BIP39 path
 /// `m/1852'/1815'/0'/0/0`, submits via Hydra `POST /transaction`.
@@ -54,7 +55,7 @@ class DiceHydraSubmit {
       final paymentPub = paymentVk.toPublicKey();
       final paymentKeyHash = Ed25519PublicKeyHash.fromPublicKey(paymentPub);
 
-      final match = _findOwnedUnspent(utxoMap, paymentKeyHash);
+      final match = findOwnedUnspent(utxoMap, paymentKeyHash);
       if (match == null) {
         throw StateError(
           'No UTxO in /snapshot/utxo matches this mnemonic at $_paymentPath.',
@@ -112,101 +113,9 @@ class DiceHydraSubmit {
         'description': 'hydra_demo dice r$roundIndex=$diceValue',
       });
 
-      return _decodeL2TransactionResponse(txRes);
+      return decodeL2TransactionResponse(txRes);
     } finally {
       http.close();
     }
   }
-
-  /// [Hydra API](https://hydra.family/head-protocol/unstable/api-reference):
-  /// 200 = confirmed snapshot, 202 = accepted (may still be confirming).
-  static String _decodeL2TransactionResponse(http.Response txRes) {
-    final bodyStr = utf8.decode(txRes.bodyBytes);
-    final code = txRes.statusCode;
-
-    Map<String, dynamic>? json;
-    try {
-      final o = jsonDecode(bodyStr);
-      if (o is Map<String, dynamic>) json = o;
-    } catch (_) {}
-
-    final tag = json?['tag'] as String?;
-    if (tag == 'SubmitTxInvalid') {
-      throw StateError(
-        'POST /transaction invalid: ${json?['validationError'] ?? bodyStr}',
-      );
-    }
-    if (tag == 'SubmitTxRejected') {
-      throw StateError(
-        'POST /transaction rejected: ${json?['reason'] ?? bodyStr}',
-      );
-    }
-
-    final timeout = json?['timeout'];
-    if (timeout != null) {
-      throw StateError(
-        'POST /transaction: $timeout '
-        '(tx may still propagate; check head UTxO or other Hydra parties.)',
-      );
-    }
-
-    if (code == 400) {
-      throw StateError('POST /transaction invalid: ${json?['validationError'] ?? bodyStr}');
-    }
-    if (code == 503) {
-      throw StateError('POST /transaction rejected: ${json?['reason'] ?? bodyStr}');
-    }
-    if (code != 200 && code != 202) {
-      throw StateError('POST /transaction $code: $bodyStr');
-    }
-
-    if (code == 202 && tag == 'SubmitTxSubmitted') {
-      return '$bodyStr\n'
-          '(202: node accepted the tx; confirmation can follow asynchronously.)';
-    }
-
-    return bodyStr;
-  }
-
-  static _OwnedMatch? _findOwnedUnspent(
-    Map<String, dynamic> utxoMap,
-    Ed25519PublicKeyHash paymentKeyHash,
-  ) {
-    for (final e in utxoMap.entries) {
-      final key = e.key;
-      final out = e.value as Map<String, dynamic>;
-      final addrStr = out['address'] as String?;
-      if (addrStr == null) continue;
-      final addr = ShelleyAddress.fromBech32(addrStr);
-      if (addr.publicKeyHash != paymentKeyHash) continue;
-
-      final parts = key.split('#');
-      if (parts.length != 2) continue;
-      final txId = parts[0];
-      final ix = int.parse(parts[1]);
-      final value = out['value'] as Map<String, dynamic>?;
-      final lovelace = (value?['lovelace'] as num?)?.toInt() ?? 0;
-      if (lovelace <= 0) continue;
-
-      final unspent = TransactionUnspentOutput(
-        input: TransactionInput(
-          transactionId: TransactionHash.fromHex(txId),
-          index: ix,
-        ),
-        output: TransactionOutput(
-          address: addr,
-          amount: Balance(coin: Coin(lovelace)),
-        ),
-      );
-      return _OwnedMatch(changeAddress: addr, unspent: unspent);
-    }
-    return null;
-  }
-}
-
-class _OwnedMatch {
-  _OwnedMatch({required this.changeAddress, required this.unspent});
-
-  final ShelleyAddress changeAddress;
-  final TransactionUnspentOutput unspent;
 }

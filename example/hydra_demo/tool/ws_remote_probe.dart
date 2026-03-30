@@ -52,6 +52,9 @@ String _summarize(HydraInboundMessage m) {
     HydraGreetings g =>
       'Greetings headStatus=${g.headStatus} version=${g.hydraNodeVersion}',
     HydraTimedServerOutput t => '[${t.seq}] ${t.tag}',
+    HydraTxValid v => '[${v.seq}] TxValid',
+    HydraTxInvalid i => '[${i.seq}] TxInvalid',
+    HydraServerSnapshot s => '[${s.seq}] Snapshot',
     HydraInvalidInput i => 'InvalidInput: ${i.reason}',
     HydraRawMessage r => 'Raw: ${r.json['tag'] ?? r.json.keys.join(',')}',
   };

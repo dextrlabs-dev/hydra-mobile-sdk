@@ -69,7 +69,8 @@ class OgmiosUtxoLoader {
         final m = Map<String, dynamic>.from(item);
         final addr = m['address'];
         if (addr != targetAddr) continue;
-        final txId = (m['transaction'] is Map) ? (m['transaction'] as Map)['id'] : null;
+        final txId =
+            (m['transaction'] is Map) ? (m['transaction'] as Map)['id'] : null;
         final ix = m['index'];
         if (txId is! String || ix is! int) continue;
 
@@ -111,7 +112,7 @@ class OgmiosUtxoLoader {
       return out;
     }
 
-    throw StateError('Unexpected Ogmios utxo result shape: ${result.runtimeType}');
+    throw StateError(
+        'Unexpected Ogmios utxo result shape: ${result.runtimeType}');
   }
 }
-
