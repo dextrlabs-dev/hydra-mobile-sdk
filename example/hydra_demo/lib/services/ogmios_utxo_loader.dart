@@ -10,8 +10,8 @@ import 'package:http/http.dart' as http;
 class OgmiosUtxoLoader {
   OgmiosUtxoLoader._();
 
-  /// Default local Ogmios HTTP endpoint.
-  static const defaultBaseUrl = 'http://127.0.0.1:1337';
+  /// Default Ogmios HTTP endpoint (remote demo node).
+  static const defaultBaseUrl = 'http://139.59.94.155:1337';
 
   /// Query UTxO set from Ogmios and filter entries where `address == [address]`.
   ///
@@ -69,7 +69,8 @@ class OgmiosUtxoLoader {
         final m = Map<String, dynamic>.from(item);
         final addr = m['address'];
         if (addr != targetAddr) continue;
-        final txId = (m['transaction'] is Map) ? (m['transaction'] as Map)['id'] : null;
+        final txId =
+            (m['transaction'] is Map) ? (m['transaction'] as Map)['id'] : null;
         final ix = m['index'];
         if (txId is! String || ix is! int) continue;
 
@@ -111,7 +112,7 @@ class OgmiosUtxoLoader {
       return out;
     }
 
-    throw StateError('Unexpected Ogmios utxo result shape: ${result.runtimeType}');
+    throw StateError(
+        'Unexpected Ogmios utxo result shape: ${result.runtimeType}');
   }
 }
-

@@ -3,6 +3,7 @@ import 'package:hydra_client/hydra_client.dart';
 
 import 'connection_tab.dart';
 import 'dice_game_tab.dart';
+import 'snake_game_tab.dart';
 
 class HydraAppShell extends StatefulWidget {
   const HydraAppShell({super.key});
@@ -30,6 +31,11 @@ class _HydraAppShellState extends State<HydraAppShell> {
             currentSlot: _currentSlot,
             hydraConfig: _hydraConfig,
           ),
+          SnakeGameTab(
+            currentSlot: _currentSlot,
+            hydraConfig: _hydraConfig,
+            isActive: _tab == 2,
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -45,6 +51,11 @@ class _HydraAppShellState extends State<HydraAppShell> {
             icon: Icon(Icons.casino_outlined),
             selectedIcon: Icon(Icons.casino),
             label: 'Dice game',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.videogame_asset_outlined),
+            selectedIcon: Icon(Icons.videogame_asset),
+            label: 'Snake',
           ),
         ],
       ),

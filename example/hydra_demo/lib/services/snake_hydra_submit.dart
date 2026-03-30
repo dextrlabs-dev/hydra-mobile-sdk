@@ -10,42 +10,34 @@ import 'package:hydra_client/hydra_client.dart';
 
 import 'l2_tx_submit_helpers.dart';
 
-/// Builds a small L2 transaction with dice metadata, signs with BIP39 path
-/// `m/1852'/1815'/0'/0/0`, submits via Hydra `POST /transaction`.
-///
-/// **Demo only.** Your mnemonic must control a UTxO already present in
-/// `/snapshot/utxo` (open head + commit).
-class DiceHydraSubmit {
-  DiceHydraSubmit._();
+class SnakeHydraSubmit {
+  SnakeHydraSubmit._();
 
   static const _paymentPath = "m/1852'/1815'/0'/0/0";
 
-  static Future<String> submitDiceRoll({
+  static Future<String> submitSnakeEvent({
     required HydraClientConfig config,
     required String mnemonic,
-    required int diceValue,
-    required int roundIndex,
     required int ttlSlot,
+    required String sessionId,
+    required int step,
+    required String eventType, // move | fruit | game_over
+    required int x,
+    required int y,
+    required String dir,
+    required int score,
+    required int length,
+    String? reason,
   }) async {
-    if (diceValue < 1 || diceValue > 6) {
-      throw ArgumentError.value(diceValue, 'diceValue', 'expected 1..6');
-    }
-
     final http = HydraHttpClient(config: config);
     try {
       final utxoRes = await http.getSnapshotUtxo();
       if (utxoRes.statusCode != 200) {
-        throw StateError(
-          'GET /snapshot/utxo failed (${utxoRes.statusCode}). '
-          'Open a head and commit funds first.',
-        );
+        throw StateError('GET /snapshot/utxo failed (${utxoRes.statusCode})');
       }
       final utxoMap = jsonDecode(utf8.decode(utxoRes.bodyBytes)) as Map<String, dynamic>;
       if (utxoMap.isEmpty) {
-        throw StateError(
-          'Empty UTxO set in head. On the Hydra tab, expand '
-          '"Commit UTxO to head (L1)" after Init, then draft/sign/submit commit.',
-        );
+        throw StateError('Empty UTxO set in head. Commit funds first.');
       }
 
       const derivation = kd.CatalystKeyDerivation();
@@ -57,25 +49,27 @@ class DiceHydraSubmit {
 
       final match = findOwnedUnspent(utxoMap, paymentKeyHash);
       if (match == null) {
-        throw StateError(
-          'No UTxO in /snapshot/utxo matches this mnemonic at $_paymentPath.',
-        );
+        throw StateError('No UTxO matches this mnemonic at $_paymentPath.');
       }
 
       final meta = AuxiliaryData(
         map: {
-          cbor.CborSmallInt(1): cbor.CborString('hydra_demo_dice'),
-          cbor.CborSmallInt(2): cbor.CborSmallInt(diceValue),
-          cbor.CborSmallInt(3): cbor.CborSmallInt(roundIndex),
+          cbor.CborSmallInt(1): cbor.CborString('hydra_demo_snake'),
+          cbor.CborSmallInt(2): cbor.CborString(sessionId),
+          cbor.CborSmallInt(3): cbor.CborSmallInt(step),
+          cbor.CborSmallInt(4): cbor.CborString(eventType),
+          cbor.CborSmallInt(5): cbor.CborSmallInt(x),
+          cbor.CborSmallInt(6): cbor.CborSmallInt(y),
+          cbor.CborSmallInt(7): cbor.CborString(dir),
+          cbor.CborSmallInt(8): cbor.CborSmallInt(score),
+          cbor.CborSmallInt(9): cbor.CborSmallInt(length),
+          if (reason != null) cbor.CborSmallInt(10): cbor.CborString(reason),
+          cbor.CborSmallInt(11): cbor.CborSmallInt(DateTime.now().millisecondsSinceEpoch),
         },
       );
 
       const txConfig = TransactionBuilderConfig(
-        feeAlgo: TieredFee(
-          constant: 0,
-          coefficient: 0,
-          refScriptByteCost: 0,
-        ),
+        feeAlgo: TieredFee(constant: 0, coefficient: 0, refScriptByteCost: 0),
         maxTxSize: 16384,
         maxValueSize: 5000,
         coinsPerUtxoByte: Coin(4310),
@@ -110,7 +104,7 @@ class DiceHydraSubmit {
       final txRes = await http.postTransaction({
         'cborHex': cborHex,
         'type': 'Witnessed Tx ConwayEra',
-        'description': 'hydra_demo dice r$roundIndex=$diceValue',
+        'description': 'hydra_demo snake $eventType sid=$sessionId step=$step',
       });
 
       return decodeL2TransactionResponse(txRes);
@@ -119,3 +113,4 @@ class DiceHydraSubmit {
     }
   }
 }
+

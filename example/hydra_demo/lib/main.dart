@@ -1,11 +1,11 @@
-import 'package:catalyst_key_derivation/catalyst_key_derivation.dart';
 import 'package:flutter/material.dart';
 
 import 'hydra_app_shell.dart';
+import 'services/catalyst_init_once.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await CatalystKeyDerivation.init();
+  await CatalystInitOnce.ensureInitialized();
   runApp(const HydraDemoApp());
 }
 
