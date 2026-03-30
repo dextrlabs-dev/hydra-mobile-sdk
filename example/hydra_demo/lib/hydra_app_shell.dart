@@ -34,6 +34,7 @@ class _HydraAppShellState extends State<HydraAppShell> {
           SnakeGameTab(
             currentSlot: _currentSlot,
             hydraConfig: _hydraConfig,
+            isActive: _tab == 2,
           ),
         ],
       ),

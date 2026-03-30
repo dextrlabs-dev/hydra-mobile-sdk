@@ -7,12 +7,8 @@ import 'package:hydra_client/hydra_client.dart';
 
 import 'fixtures/commit_sample_fixture.dart';
 import 'services/hydra_commit_submit.dart';
-<<<<<<< Updated upstream
 import 'services/devnet_utxo_loader.dart';
 import 'services/ogmios_utxo_loader.dart';
-import 'services/prefs_hydra_state_store.dart';
-=======
->>>>>>> Stashed changes
 
 class ConnectionTab extends StatefulWidget {
   const ConnectionTab({
@@ -29,8 +25,9 @@ class ConnectionTab extends StatefulWidget {
 }
 
 class _ConnectionTabState extends State<ConnectionTab> {
-  /// Android emulator → host Hydra: `10.0.2.2`. Desktop/web: `127.0.0.1`.
-  final _hostCtrl = TextEditingController(text: '10.0.2.2');
+  /// Default remote demo Hydra node.
+  /// If you run Hydra locally and use an Android emulator, use `10.0.2.2`.
+  final _hostCtrl = TextEditingController(text: '139.59.94.155');
   final _portCtrl = TextEditingController(text: '4001');
   final _commitUtxoJsonCtrl = TextEditingController();
   final _commitMnemonicCtrl = TextEditingController();
@@ -598,7 +595,7 @@ class _ConnectionTabState extends State<ConnectionTab> {
                       decoration: const InputDecoration(
                         labelText: 'hydra-node host',
                         border: OutlineInputBorder(),
-                        helperText: 'Emulator: 10.0.2.2 · Desktop: 127.0.0.1',
+                        helperText: 'Remote: 139.59.94.155 · Local emulator: 10.0.2.2',
                       ),
                     ),
                     const SizedBox(height: 8),
