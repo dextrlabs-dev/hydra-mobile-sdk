@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/commit_sample_fixture.dart';
 import 'services/hydra_commit_submit.dart';
+import 'services/devnet_utxo_loader.dart';
+import 'services/ogmios_utxo_loader.dart';
 import 'services/prefs_hydra_state_store.dart';
 
 class ConnectionTab extends StatefulWidget {
@@ -34,6 +36,13 @@ class _ConnectionTabState extends State<ConnectionTab> {
   final _decommitJsonCtrl = TextEditingController();
   final _recoverTxIdCtrl = TextEditingController();
   final _log = <String>[];
+
+  String? _derivedAddr;
+  Map<String, dynamic>? _l1UtxoByTxIn;
+  final Set<String> _selectedTxIns = <String>{};
+  bool _utxoBusy = false;
+  String? _utxoLoadResult;
+  bool _useOgmiosIndexer = true;
 
   HydraHeadFacade? _facade;
   StreamSubscription<HydraInboundMessage>? _sub;
@@ -420,6 +429,112 @@ class _ConnectionTabState extends State<ConnectionTab> {
     _append('Loaded sample UTxO JSON + test mnemonic (preview demo only).');
   }
 
+  Future<void> _loadL1UtxosFromMnemonic() async {
+    final mnemonic = _commitMnemonicCtrl.text.trim();
+    if (mnemonic.isEmpty) {
+      setState(() => _utxoLoadResult = 'Enter mnemonic first.');
+      return;
+    }
+    setState(() {
+      _utxoBusy = true;
+      _utxoLoadResult = null;
+      _derivedAddr = null;
+      _l1UtxoByTxIn = null;
+      _selectedTxIns.clear();
+    });
+    try {
+      final addr = await DevnetUtxoLoader.deriveBaseTestnetAddressFromMnemonic(
+        mnemonic,
+      );
+      final utxo = _useOgmiosIndexer
+          ? await OgmiosUtxoLoader.queryUtxoByAddress(address: addr)
+          : await DevnetUtxoLoader.queryUtxoJsonBestEffort(address: addr);
+      if (!mounted) return;
+      setState(() {
+        _utxoBusy = false;
+        _derivedAddr = addr;
+        _l1UtxoByTxIn = utxo;
+        _utxoLoadResult =
+            utxo.isEmpty ? 'No UTxOs at derived address.' : 'Loaded ${utxo.length} UTxO(s).';
+      });
+      _append('Derived address: $addr');
+      _append(
+        'Loaded ${utxo.length} L1 UTxO(s) via ${_useOgmiosIndexer ? 'Ogmios' : 'cardano-cli'}.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _utxoBusy = false;
+        _utxoLoadResult = 'Load failed: $e';
+      });
+      _append('Load L1 UTxO failed: $e');
+    }
+  }
+
+  int _lovelaceOf(dynamic utxoOut) {
+    if (utxoOut is! Map<String, dynamic>) return 0;
+    final value = utxoOut['value'];
+    if (value is! Map) return 0;
+    final l = value['lovelace'];
+    if (l is int) return l;
+    if (l is num) return l.toInt();
+    return 0;
+  }
+
+  Map<String, dynamic> _selectedUtxoMap() {
+    final utxo = _l1UtxoByTxIn;
+    if (utxo == null) return <String, dynamic>{};
+    final out = <String, dynamic>{};
+    for (final k in _selectedTxIns) {
+      final v = utxo[k];
+      if (v != null) out[k] = v;
+    }
+    return out;
+  }
+
+  Future<void> _commitSelectedUtxos() async {
+    final f = _facade;
+    if (f == null || f.connectionStateValue != HydraConnectionState.connected) {
+      setState(() => _commitResult = 'Connect first.');
+      return;
+    }
+    final mnemonic = _commitMnemonicCtrl.text.trim();
+    if (mnemonic.isEmpty) {
+      setState(() => _commitResult = 'Enter mnemonic first.');
+      return;
+    }
+    final selected = _selectedUtxoMap();
+    if (selected.isEmpty) {
+      setState(() => _commitResult = 'Select at least one UTxO.');
+      return;
+    }
+
+    setState(() {
+      _commitBusy = true;
+      _commitResult = null;
+    });
+    try {
+      final msg = await HydraCommitSubmit.draftSignAndSubmitL1Commit(
+        config: _apiConfig ?? _configFromFields(),
+        mnemonic: mnemonic,
+        utxoToCommit: selected,
+      );
+      if (!mounted) return;
+      setState(() {
+        _commitBusy = false;
+        _commitResult = 'L1 commit submitted: $msg';
+      });
+      _append('Commit tx submitted to L1: $msg');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _commitBusy = false;
+        _commitResult = 'Error: $e';
+      });
+      _append('Commit failed: $e');
+    }
+  }
+
   Future<void> _submitCommit() async {
     final f = _facade;
     if (f == null ||
@@ -711,6 +826,90 @@ class _ConnectionTabState extends State<ConnectionTab> {
                             label: const Text('Load sample (preview testnet)'),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Use Ogmios indexer for UTxOs'),
+                          subtitle: const Text('Queries http://127.0.0.1:1337 (JSON-RPC)'),
+                          value: _useOgmiosIndexer,
+                          onChanged: _utxoBusy
+                              ? null
+                              : (v) => setState(() => _useOgmiosIndexer = v),
+                        ),
+                        FilledButton.tonalIcon(
+                          onPressed: _utxoBusy ? null : _loadL1UtxosFromMnemonic,
+                          icon: _utxoBusy
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.download),
+                          label: const Text('Load L1 UTxOs from mnemonic'),
+                        ),
+                        if (_derivedAddr != null) ...[
+                          const SizedBox(height: 8),
+                          SelectableText(
+                            'Derived addr_test:\n$_derivedAddr',
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                          ),
+                        ],
+                        if (_utxoLoadResult != null) ...[
+                          const SizedBox(height: 8),
+                          Text(_utxoLoadResult!),
+                        ],
+                        if (_l1UtxoByTxIn != null) ...[
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 180,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Theme.of(context).dividerColor),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ListView(
+                                children: _l1UtxoByTxIn!.entries.map((e) {
+                                  final txIn = e.key;
+                                  final lovelace = _lovelaceOf(e.value);
+                                  final selected = _selectedTxIns.contains(txIn);
+                                  return CheckboxListTile(
+                                    dense: true,
+                                    value: selected,
+                                    onChanged: (v) {
+                                      setState(() {
+                                        if (v == true) {
+                                          _selectedTxIns.add(txIn);
+                                        } else {
+                                          _selectedTxIns.remove(txIn);
+                                        }
+                                        final map = _selectedUtxoMap();
+                                        _commitUtxoJsonCtrl.text =
+                                            const JsonEncoder.withIndent('  ')
+                                                .convert(map);
+                                      });
+                                    },
+                                    title: Text(
+                                      txIn,
+                                      style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    subtitle: Text('$lovelace lovelace'),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          FilledButton.icon(
+                            onPressed: (canWs && !_commitBusy) ? _commitSelectedUtxos : null,
+                            icon: const Icon(Icons.check_circle),
+                            label: Text(
+                              'Commit selected (${_selectedTxIns.length})',
+                            ),
+                          ),
+                        ],
                         TextField(
                           controller: _commitUtxoJsonCtrl,
                           decoration: const InputDecoration(
