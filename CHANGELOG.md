@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0-alpha
+
+- **iOS scaffold:** `example/hydra_demo/ios/` Xcode project added; CI now builds the demo for both Android (APK) and iOS (unsigned simulator app) on every push.
+- **Lifecycle tests:** `open_close_flow_test.dart` covers connect / open (`Init`) / close (`Close`, `SafeClose`, `Contest`, `Fanout`) / payment (`NewTx`) client inputs and the Idle → Initial head-state walk.
+- **Sample app naming:** `hydra_demo` is documented as the *micropayments sample app*, with two in-head scenarios (Dice, Snake) settling as L2 transactions inside an open Hydra head.
+
 ## 0.2.0
 
 - **WebSocket:** `ReconnectingHydraSession` with exponential backoff (capped, default 3s max) and a `messages` stream that survives reconnects; `HydraReconnectPolicy` and `HydraConnectionState`.

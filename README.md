@@ -3,7 +3,7 @@
 [![CI](https://github.com/dextrlabs-dev/hydra-mobile-sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dextrlabs-dev/hydra-mobile-sdk/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dextrlabs-dev/hydra-mobile-sdk?include_prereleases)](https://github.com/dextrlabs-dev/hydra-mobile-sdk/releases)
 
-Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hydra-node` (HTTP + WebSocket API).
+Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hydra-node` (HTTP + WebSocket API), plus a cross-platform Flutter **micropayments sample app** (Android + iOS + Linux).
 
 ## Contents
 
@@ -14,7 +14,7 @@ Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hyd
 | [docs/PDF_COMPLIANCE.md](docs/PDF_COMPLIANCE.md) | PDF requirements vs implemented scope |
 | [CHANGELOG.md](CHANGELOG.md) | Package and example release notes |
 | [packages/hydra_client](packages/hydra_client) | Publishable Dart package |
-| [example/hydra_demo](example/hydra_demo) | Flutter UI: WS head protocol, REST snapshots/head, L1 commit, dice L2 |
+| [example/hydra_demo](example/hydra_demo) | Flutter **micropayments** sample app (Android + iOS + Linux): WS head protocol, REST snapshots/head, L1 commit, plus two in-head micropayment scenarios (`Dice` and `Snake`) where each interaction settles as an L2 tx inside the Hydra head |
 
 ## Quick start (library)
 
