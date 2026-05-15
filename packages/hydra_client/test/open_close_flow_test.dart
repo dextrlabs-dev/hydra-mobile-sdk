@@ -55,10 +55,10 @@ void main() {
       expect(json['tag'], 'Initial');
       final contents = json['contents'] as Map<String, dynamic>;
       expect(contents['headId'], isA<String>());
-      expect(contents['pendingCommits'], isA<List>());
+      expect(contents['pendingCommits'], isA<List<Object?>>());
       final params = contents['parameters'] as Map<String, dynamic>;
       expect(params['contestationPeriod'], 3);
-      expect(params['parties'], isA<List>());
+      expect(params['parties'], isA<List<Object?>>());
     });
   });
 
