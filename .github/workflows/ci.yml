@@ -101,55 +101,11 @@ jobs:
           name: hydra-demo-ios-simulator-app
           path: example/hydra_demo/build/ios/iphonesimulator/hydra_demo-ios-simulator.zip
 
-  ios_integration:
-    name: hydra_demo (iOS simulator launch + screen recording)
-    runs-on: macos-latest
-    needs: ios_build
-    defaults:
-      run:
-        working-directory: example/hydra_demo
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - run: flutter pub get
-      - name: list available simulators
-        run: xcrun simctl list devices available
-      - name: boot iPhone simulator
-        run: |
-          UDID=$(xcrun simctl list devices available | grep -E "iPhone [0-9]+ \(" | head -1 | sed -E 's/.*\(([-0-9A-F]+)\).*/\1/')
-          echo "UDID=$UDID" >> "$GITHUB_ENV"
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b
-      - name: start screen recording
-        run: |
-          (xcrun simctl io "$UDID" recordVideo --codec h264 --force /tmp/hydra-demo-ios.mp4 &)
-          echo $! > /tmp/rec.pid
-          sleep 2
-      - name: launch demo on simulator
-        run: |
-          flutter run -d "$UDID" --no-pub --target=lib/main.dart &
-          RUN_PID=$!
-          sleep 60
-          kill $RUN_PID || true
-        continue-on-error: true
-      - name: stop screen recording
-        if: always()
-        run: |
-          kill -INT "$(cat /tmp/rec.pid)" || true
-          sleep 3
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: hydra-demo-ios-screen-recording
-          path: /tmp/hydra-demo-ios.mp4
-
   release:
     name: Publish GitHub Release on tag
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [android_build, ios_build, ios_integration]
+    needs: [android_build, ios_build]
     permissions:
       contents: write
     steps:
@@ -160,7 +116,7 @@ jobs:
       - name: assemble release assets
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.apk' -o -name '*.zip' -o -name '*.mp4' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.apk' -o -name '*.zip' \) -exec cp {} release/ \;
           ls -la release/
       - uses: softprops/action-gh-release@v2
         with:
