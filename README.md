@@ -1,5 +1,8 @@
 # hydra-mobile-sdk
 
+[![CI](https://github.com/dextrlabs-dev/hydra-mobile-sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dextrlabs-dev/hydra-mobile-sdk/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/dextrlabs-dev/hydra-mobile-sdk?include_prereleases)](https://github.com/dextrlabs-dev/hydra-mobile-sdk/releases)
+
 Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hydra-node` (HTTP + WebSocket API).
 
 ## Contents
