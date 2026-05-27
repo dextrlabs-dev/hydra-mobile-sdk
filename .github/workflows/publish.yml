@@ -1,0 +1,29 @@
+name: Publish hydra_client to pub.dev
+
+# Publishes packages/hydra_client to pub.dev using pub.dev's automated
+# publishing (OIDC — no long-lived token in the repo).
+#
+# One-time setup on pub.dev (maintainer): create/claim the `hydra_client`
+# package, then under "Admin > Automated publishing" enable GitHub Actions
+# publishing for repo `dextrlabs-dev/hydra-mobile-sdk` with a tag pattern of
+# `hydra_client-v{{version}}`.
+#
+# Then publish a version by pushing a matching tag, e.g.:
+#   git tag hydra_client-v1.0.0 && git push origin hydra_client-v1.0.0
+#
+# (The `v*` release tag intentionally does NOT trigger this workflow, so the
+# GitHub Release and the pub.dev publish stay independent.)
+
+on:
+  push:
+    tags:
+      - "hydra_client-v[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    permissions:
+      id-token: write # required for pub.dev OIDC authentication
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      working-directory: packages/hydra_client

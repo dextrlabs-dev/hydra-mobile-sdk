@@ -1,9 +1,24 @@
 # hydra-mobile-sdk
 
 [![CI](https://github.com/dextrlabs-dev/hydra-mobile-sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dextrlabs-dev/hydra-mobile-sdk/actions/workflows/ci.yml)
+[![Docs](https://github.com/dextrlabs-dev/hydra-mobile-sdk/actions/workflows/docs.yml/badge.svg)](https://dextrlabs-dev.github.io/hydra-mobile-sdk/)
+[![pub package](https://img.shields.io/pub/v/hydra_client.svg)](https://pub.dev/packages/hydra_client)
 [![Release](https://img.shields.io/github/v/release/dextrlabs-dev/hydra-mobile-sdk?include_prereleases)](https://github.com/dextrlabs-dev/hydra-mobile-sdk/releases)
 
 Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hydra-node` (HTTP + WebSocket API), plus a cross-platform Flutter **micropayments sample app** (Android + iOS + Linux).
+
+## Documentation & release
+
+| Resource | Link |
+|----------|------|
+| Documentation site | <https://dextrlabs-dev.github.io/hydra-mobile-sdk/> |
+| Package (pub.dev) | [pub.dev/packages/hydra_client](https://pub.dev/packages/hydra_client) |
+| Final Project Report | [FINAL_REPORT.md](FINAL_REPORT.md) |
+| Closeout Slide Deck | [SLIDES.pdf](SLIDES.pdf) |
+| Performance Review | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) |
+| External POCs (Zodor.io, Bepay.money) | [docs/POCS.md](docs/POCS.md) |
+| Demo recording | [docs/media/demo.mp4](docs/media/demo.mp4) |
+| Developer workshop recording | _to be published_ |
 
 ## Contents
 
@@ -18,18 +33,23 @@ Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hyd
 
 ## Quick start (library)
 
+Install from pub.dev:
+
+```bash
+dart pub add hydra_client      # or: flutter pub add hydra_client
+```
+
+```yaml
+dependencies:
+  hydra_client: ^1.0.0
+```
+
+Or work from this repo:
+
 ```bash
 cd packages/hydra_client
 dart pub get
 dart test
-```
-
-Use in your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  hydra_client:
-    path: ../hydra-mobile-sdk/packages/hydra_client  # or git / pub.dev once published
 ```
 
 ## Run the Flutter example against local Hydra
@@ -78,6 +98,14 @@ GitHub Actions (`.github/workflows/ci.yml`) runs `dart analyze` / `dart test` on
 
 ## Publishing `hydra_client` to pub.dev (maintainers)
 
-1. Bump `version` in [packages/hydra_client/pubspec.yaml](packages/hydra_client/pubspec.yaml) and add an entry to [CHANGELOG.md](CHANGELOG.md).
-2. From `packages/hydra_client`: `dart pub publish --dry-run` and fix any reported issues.
-3. `dart pub publish` (with appropriate `PUB_CREDENTIALS` / OAuth).
+`hydra_client` is MIT-licensed and published to pub.dev with semantic versioning. Two paths:
+
+**Automated (recommended)** — [`.github/workflows/publish.yml`](.github/workflows/publish.yml) uses pub.dev's OIDC automated publishing. One-time: on pub.dev, under the package's *Admin → Automated publishing*, enable GitHub Actions for `dextrlabs-dev/hydra-mobile-sdk` with tag pattern `hydra_client-v{{version}}`. Then:
+
+```bash
+git tag hydra_client-v1.0.0 && git push origin hydra_client-v1.0.0
+```
+
+**Manual** — from `packages/hydra_client`: `dart pub publish --dry-run` (fix issues), then `dart pub publish`.
+
+Bump `version` in [packages/hydra_client/pubspec.yaml](packages/hydra_client/pubspec.yaml) and add a [CHANGELOG.md](CHANGELOG.md) entry for each release.
