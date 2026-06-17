@@ -14,6 +14,14 @@ topics:
   - payments
   - flutter
 
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
+  web:
+
 environment:
   sdk: ">=3.3.0 <4.0.0"
 

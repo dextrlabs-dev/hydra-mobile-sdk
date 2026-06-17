@@ -19,7 +19,10 @@ class ReconnectingHydraSession {
     HydraDelayer? delayer,
   }) : _delayer = delayer ?? Future<void>.delayed;
 
+  /// Connection settings (host, port, TLS) for each socket this session opens.
   final HydraClientConfig config;
+
+  /// Backoff / auto-reconnect policy applied between socket attempts.
   final HydraReconnectPolicy policy;
   final HydraDelayer _delayer;
 

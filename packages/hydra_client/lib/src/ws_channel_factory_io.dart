@@ -11,5 +11,12 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 /// port instead of your hydra-node host.
 WebSocketChannel createHydraWebSocket(Uri uri) {
   final client = HttpClient()..findProxy = (_) => 'DIRECT';
-  return IOWebSocketChannel.connect(uri, customClient: client);
+  final channel = IOWebSocketChannel.connect(uri, customClient: client);
+  // The custom HttpClient owns the upgraded socket's connection pool; close it
+  // once the channel is done (clean close, remote drop, or connect failure) so
+  // repeated reconnects don't leak HttpClient instances and their idle timers.
+  channel.sink.done
+      .whenComplete(() => client.close(force: true))
+      .catchError((Object _) {});
+  return channel;
 }

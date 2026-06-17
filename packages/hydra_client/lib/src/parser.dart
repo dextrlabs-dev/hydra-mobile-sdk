@@ -11,10 +11,14 @@ HydraInboundMessage parseHydraMessage(String text) {
   final m = Map<String, dynamic>.from(decoded);
 
   if (_isInvalidInput(m)) {
-    return HydraInvalidInput(
-      reason: m['reason']! as String,
-      input: m['input']! as String,
-    );
+    // `reason` / `input` are strings in the Hydra API, but fall back to a raw
+    // message instead of throwing if a node ever sends another JSON type.
+    final reason = m['reason'];
+    final input = m['input'];
+    if (reason is String && input is String) {
+      return HydraInvalidInput(reason: reason, input: input);
+    }
+    return HydraRawMessage(m);
   }
 
   if (_isGreetings(m)) {

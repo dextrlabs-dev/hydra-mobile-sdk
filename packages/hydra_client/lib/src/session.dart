@@ -64,6 +64,7 @@ class HydraSession {
     ch.sink.add(jsonEncode(clientInput));
   }
 
+  /// Closes the socket but keeps [messages] open so the session can [connect] again.
   Future<void> close() async {
     await _subscription?.cancel();
     _subscription = null;
@@ -71,6 +72,7 @@ class HydraSession {
     _channel = null;
   }
 
+  /// Closes the socket and the [messages] stream; the session cannot be reused after this.
   Future<void> dispose() async {
     await close();
     await _controller.close();

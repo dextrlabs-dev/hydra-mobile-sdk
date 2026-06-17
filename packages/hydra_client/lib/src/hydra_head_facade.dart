@@ -63,8 +63,10 @@ class HydraHeadFacade {
   /// until [dispose] unless you control lifecycle.
   HydraHttpClient get hydraHttp => _http;
 
+  /// Connection settings (host, port, TLS) this facade was built with.
   HydraClientConfig get config => _config;
 
+  /// Backing store for persisted seq / snapshot-sync hints.
   HydraStateStore get stateStore => _store;
 
   /// Optional L2 signer for app-specific transaction building.
@@ -79,9 +81,14 @@ class HydraHeadFacade {
   Stream<HydraConnectionState> get connectionState =>
       _session.connectionState;
 
+  /// Last emitted transport state (see [connectionState] for the live stream).
   HydraConnectionState get connectionStateValue => _session.state;
 
-  /// Subscribe to message flow, then open the socket (and reconnect if configured).
+  /// Subscribes to the message flow, then opens the socket (and reconnects if configured).
+  ///
+  /// When [restoreSeq] is true (default), the persisted seq is loaded from
+  /// [stateStore] first so already-processed messages are skipped after an app
+  /// restart; pass false to start fresh and forward every message.
   Future<void> connect({bool restoreSeq = true}) async {
     await _sub?.cancel();
     _sub = null;

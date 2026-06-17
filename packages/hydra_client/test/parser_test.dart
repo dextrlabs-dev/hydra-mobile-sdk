@@ -58,6 +58,12 @@ void main() {
     expect(inv.input, 'not-json');
   });
 
+  test('InvalidInput with non-string fields falls back to raw (no throw)', () {
+    final raw = jsonEncode({'reason': 123, 'input': {'x': 1}, 'tag': null});
+    final msg = parseHydraMessage(raw);
+    expect(msg, isA<HydraRawMessage>());
+  });
+
   test('Greetings without tag (legacy shape)', () {
     final raw = jsonEncode({
       'me': {'vkey': 'aa'},
