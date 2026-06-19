@@ -18,7 +18,8 @@ Flutter-friendly Dart client for **[Cardano Hydra](https://hydra.family/)** `hyd
 | Performance Review | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) |
 | External POCs (Zodor.io, Bepay.money) | [docs/POCS.md](docs/POCS.md) |
 | Demo recording | [docs/media/demo.mp4](docs/media/demo.mp4) |
-| Developer workshop recording | _to be published_ |
+| Developer workshop recording | [YouTube (PCV)](https://youtu.be/_-VUvYbxI-Y) · [in-repo (docs/media/workshop.mp4)](docs/media/workshop.mp4) |
+| Project Completion Report (PCR) | [PCR.pdf](PCR.pdf) · [PCR.md](PCR.md) |
 
 ## Contents
 
