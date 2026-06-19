@@ -32,7 +32,7 @@ Counted by `grep` over the live `docker logs hydra-offline` output:
 | **`OnInitTx`** | 1 | Initial Hydra head observed on L1. `headId = 6f66666c696e652d0001` (hex-decodes to ASCII `offline-0001`), `contestationPeriod = 43200` s, single party. First observed `2026-06-17T12:51:37.837Z`. |
 | **`OnCommitTx`** | 1 | Commit observed. Committed UTxO `0000000000000000000000000000000000000000000000000000000000000000#0` for `addr_test1qq8ac7qqy0vtulyl7wntmsxc6wex80gvcyjy33qffrhm7sh927ysx5sftuw0dlft05dz3c7revpf7jx0xnlcjz3g69mqkt5dmn` (= 1,000,000,000 lovelace ≈ 1000 tADA, the demo wallet's pre-funded balance). |
 | **`OnCollectComTx`** | 1 | Head collected commits and transitioned to **Open** — the state in which the workshop's L2 traffic happens. |
-| `OnCloseTx` / `OnContestTx` / `OnFanoutTx` | 0 in the captured window | The workshop deliberately leaves the head open between recordings; the SDK exposes `sendClose()` / `sendSafeClose()` / `sendContest()` / `sendFanout()` (see [`HydraHeadFacade`](../packages/hydra_client/lib/src/hydra_head_facade.dart)) which exercise these L1 paths against a real Cardano network deployment. |
+| `OnCloseTx` / `OnContestTx` / `OnFanoutTx` | 0 in the captured window | The workshop deliberately leaves the head open between recordings; the SDK exposes `sendClose()` / `sendSafeClose()` / `sendContest()` / `sendFanout()` (see [`HydraHeadFacade`](https://github.com/dextrlabs-dev/hydra-mobile-sdk/blob/main/packages/hydra_client/lib/src/hydra_head_facade.dart)) which exercise these L1 paths against a real Cardano network deployment. |
 
 > **Honest framing.** The `--offline-head-seed` mode produces the same Hydra
 > L1 chain events the SDK consumes against a public testnet — `OnInitTx`,
@@ -93,11 +93,11 @@ cd example/hydra_demo && flutter run -d web-server --web-hostname 127.0.0.1 --we
 ## L1 lifecycle test coverage in the SDK
 
 The same lifecycle is asserted deterministically in the test suite at
-[`packages/hydra_client/test/open_close_flow_test.dart`](../packages/hydra_client/test/open_close_flow_test.dart),
+[`packages/hydra_client/test/open_close_flow_test.dart`](https://github.com/dextrlabs-dev/hydra-mobile-sdk/blob/main/packages/hydra_client/test/open_close_flow_test.dart),
 which walks the Idle → Initial → Open → Closed → FanoutPossible states using
 the head-state fixtures under
-[`packages/hydra_client/test/fixtures/`](../packages/hydra_client/test/fixtures/)
+[`packages/hydra_client/test/fixtures/`](https://github.com/dextrlabs-dev/hydra-mobile-sdk/tree/main/packages/hydra_client/test/fixtures)
 (notably `head_initial.json` carrying head id
 `83d36c9ffb1f8bac1cee31462cf73fdd420be5b37e13b380835d13fc`, which is the
-[`HydraHeadState.tryParse`](../packages/hydra_client/lib/src/models/hydra_head_state.dart)
+[`HydraHeadState.tryParse`](https://github.com/dextrlabs-dev/hydra-mobile-sdk/blob/main/packages/hydra_client/lib/src/models/hydra_head_state.dart)
 target used by every consumer of `GET /head`).

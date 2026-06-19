@@ -51,7 +51,13 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Performance Review: PERFORMANCE.md
-  - External POCs: POCS.md
-  - API Mapping: API_MAPPING.md
+  - Using the SDK:
+      - API Cheat Sheet: API_CHEATSHEET.md
+      - API Mapping: API_MAPPING.md
+      - Integration Code Map: INTEGRATION_LINKS.md
+  - Evidence & Demos:
+      - Performance Review: PERFORMANCE.md
+      - On-chain Evidence: onchain-evidence.md
+      - External POCs: POCS.md
+      - Developer Workshop: WORKSHOP_SCRIPT.md
   - PDF Compliance: PDF_COMPLIANCE.md

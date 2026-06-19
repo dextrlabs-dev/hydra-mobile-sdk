@@ -20,4 +20,4 @@ Cross-check for **Landscape review**, **Technical Assessment**, and **Architectu
 | Performance NFRs (latency targets) | Cited in PDF | **Not validated** in CI |
 | pub.dev release | Milestone | **Prep** — version + `CHANGELOG`; run `dart pub publish --dry-run` before publish |
 
-For narrative gaps and history, see [REQUIREMENTS.md](../REQUIREMENTS.md) and [CHANGELOG.md](../CHANGELOG.md).
+For narrative gaps and history, see [REQUIREMENTS.md](https://github.com/dextrlabs-dev/hydra-mobile-sdk/blob/main/REQUIREMENTS.md) and [CHANGELOG.md](https://github.com/dextrlabs-dev/hydra-mobile-sdk/blob/main/CHANGELOG.md).
